@@ -1291,7 +1291,7 @@ function openSlip(type,empId,mon,yr){
   }
   const totLem=sd.lembur.reduce((a,b)=>a+(b*lp),0);
   const totPend=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
-  const totCash=sd.potongan.reduce((a,b)=>a+(b.rp||0),0);
+  const totCash=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
   const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0), ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0), ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
   const totPot=totCash+ptl+ptm+ptp;
   const totPenghasilan=base+totLem+totPend, totBersih=totPenghasilan-totPot;

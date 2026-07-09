@@ -1136,6 +1136,9 @@ function renderGajiPage(type){
       <select id="gm-${type}" onchange="renderGajiTable('${type}')" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;flex:1;min-width:110px">${mOpt}</select>
       <select id="gy-${type}" onchange="renderGajiTable('${type}')" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:80px">${yOpt}</select>
     </div>
+    <div class="toolbar">
+      <input class="search-box" id="gs-${type}" placeholder="🔍 Cari nama / NIK karyawan..." oninput="renderGajiTable('${type}')">
+    </div>
     <div id="gsb-${type}"></div>
     <div class="card">
       <div class="card-hd"><span class="card-title">Daftar Gaji</span></div>
@@ -1146,7 +1149,9 @@ function renderGajiPage(type){
 
 function renderGajiTable(type){
   const mon=parseInt(gv('gm-'+type)), yr=parseInt(gv('gy-'+type));
-  const emps=S.employees[type].filter(e=>e.aktif);
+  const q=(gv('gs-'+type)||'').trim().toLowerCase();
+  let emps=S.employees[type].filter(e=>e.aktif);
+  if(q) emps=emps.filter(e=>(e.nama||'').toLowerCase().includes(q)||(e.nik||'').toLowerCase().includes(q));
   let totGaji=0;
   if(type==='nfc'){
     el('gth-'+type).innerHTML='<th>Nama / Jabatan</th><th>Hari Hadir</th><th>Gaji Harian</th><th>Lembur</th><th>Pend. Tambahan</th><th>Potongan</th><th>Total Gaji</th><th>Aksi</th>';
@@ -1161,7 +1166,7 @@ function renderGajiTable(type){
         <td>${sd.jumlahHadir} hari</td><td>${rp(gh)}</td><td>${rp(tl)}</td><td>${rp(tp)}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('nfc','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
-    }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">Belum ada karyawan aktif.</td></tr>';
+    }).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
   } else {
     el('gth-'+type).innerHTML='<th>Nama / Jabatan</th><th>Hari Hadir</th><th>Gaji+Jabatan</th><th>Tunj. Harian</th><th>Lembur</th><th>Pend. Tambahan</th><th>Potongan</th><th>Total Gaji</th><th>Aksi</th>';
     el('gtb-'+type).innerHTML=emps.length?emps.map(emp=>{
@@ -1176,9 +1181,9 @@ function renderGajiTable(type){
         <td>${sd.jumlahHadir} hari</td><td>${rp(gpj)}</td><td>${rp(th)}</td><td>${rp(tl)}</td><td>${rp(tp)}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('${type}','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
-    }).join(''):'<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">Belum ada karyawan aktif.</td></tr>';
+    }).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
   }
-  el('gsb-'+type).innerHTML=`<div class="sum-bar"><div><div class="lbl">Total Gaji ${MONTHS[mon]} ${yr}</div><div class="val">${rp(totGaji)}</div></div><div style="text-align:right"><div class="lbl">Karyawan Aktif</div><div class="val">${emps.length} orang</div></div></div>`;
+  el('gsb-'+type).innerHTML=`<div class="sum-bar"><div><div class="lbl">Total Gaji ${MONTHS[mon]} ${yr}</div><div class="val">${rp(totGaji)}</div></div><div style="text-align:right"><div class="lbl">Karyawan Ditampilkan</div><div class="val">${emps.length} orang</div></div></div>`;
 }
 
 // ==================== SALARY DETAIL ====================
@@ -1405,38 +1410,59 @@ function renderRekap(){
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totPot=0, totTerlambat=0, totTM=0, totTP=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
+      const lp=emp.lemburPerJam||0;
+      const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
+      const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
       const ct=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
       const ci=sd.cashbon.filter(c=>c.rp>0);
-      totH+=sd.jumlahHadir; totC+=ct;
-      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci});
+      const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0);
+      const ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0);
+      const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
+      const totPotEmp=ct+ptl+ptm+ptp;
+      let base=0;
+      if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
+      else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
+      const totGajiEmp=base+tl+tp-totPotEmp;
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totPot+=totPotEmp;
+      totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
+      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,totPotEmp,ptl,ptm,ptp});
     });
   });
   if(!rows.length){ el('rek-content').innerHTML='<div style="padding:30px;text-align:center;color:var(--text-muted)">Belum ada data karyawan aktif.</div>'; return; }
   el('rek-content').innerHTML=`
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
       <div class="sc a" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Hari Hadir</div><div class="sc-val" style="font-size:18px">${totH} hari</div></div>
-      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Cashbon</div><div class="sc-val" style="font-size:18px">${rp(totC)}</div></div>
-      <div class="sc i" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Jumlah Karyawan</div><div class="sc-val" style="font-size:18px">${rows.length} orang</div></div>
+      <div class="sc s" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Gaji</div><div class="sc-val" style="font-size:18px">${rp(totGaji)}</div></div>
+      <div class="sc i" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pendapatan Tambahan</div><div class="sc-val" style="font-size:18px">${rp(totPend)}</div></div>
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Potongan</div><div class="sc-val" style="font-size:18px">${rp(totPot)}</div></div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Cashbon</div><div class="sc-val" style="font-size:16px">${rp(totC)}</div></div>
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Terlambat</div><div class="sc-val" style="font-size:16px">${rp(totTerlambat)}</div></div>
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Masuk</div><div class="sc-val" style="font-size:16px">${rp(totTM)}</div></div>
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Pulang</div><div class="sc-val" style="font-size:16px">${rp(totTP)}</div></div>
     </div>
     <div class="card">
       <div class="card-hd"><span class="card-title">Rekap Harian – ${MONTHS[mon]} ${yr}</span></div>
-      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th></tr></thead>
       <tbody>
         ${rows.map((r,i)=>`<tr>
           <td style="color:var(--text-muted);font-size:12px">${i+1}</td><td><b>${r.nama}</b></td>
           <td style="font-size:12px;color:var(--text-muted)">${r.nik}</td><td>${r.jabatan}</td>
           <td><span class="badge badge-i">${r.kat}</span></td>
           <td style="text-align:center;font-weight:700">${r.hadir}</td>
+          <td style="text-align:right;font-weight:700;color:var(--primary)">${rp(r.totGajiEmp)}</td>
           <td style="text-align:right;${r.ct>0?'color:var(--danger);font-weight:700':''}">${r.ct>0?rp(r.ct):'-'}</td>
           <td style="font-size:11.5px;color:var(--text-muted)">${r.ci.length?r.ci.map(c=>(c.ket||'Cashbon')+': '+rp(c.rp)).join('<br>'):'—'}</td>
         </tr>`).join('')}
         <tr style="background:var(--bg);font-weight:700">
           <td colspan="5" style="text-align:right;color:var(--primary);padding-right:12px">TOTAL</td>
           <td style="text-align:center;color:var(--primary)">${totH}</td>
+          <td style="text-align:right;color:var(--primary)">${rp(totGaji)}</td>
           <td style="text-align:right;color:var(--danger)">${totC>0?rp(totC):'-'}</td>
           <td></td>
         </tr>
@@ -1449,38 +1475,96 @@ function printRekap(){
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totPot=0, totTerlambat=0, totTM=0, totTP=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
+      const lp=emp.lemburPerJam||0;
+      const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
+      const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
       const ct=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
       const ci=sd.cashbon.filter(c=>c.rp>0);
-      totH+=sd.jumlahHadir; totC+=ct;
-      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci});
+      const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0);
+      const ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0);
+      const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
+      const totPotEmp=ct+ptl+ptm+ptp;
+      let base=0;
+      if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
+      else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
+      const totGajiEmp=base+tl+tp-totPotEmp;
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totPot+=totPotEmp;
+      totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
+      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,totPotEmp,ptl,ptm,ptp});
     });
   });
   const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   const co=CFG.nama||'CV. MITRA MULTI TEKNIK';
   const logoH=CFG.logo?`<img src="${CFG.logo}" style="height:50px;max-width:80px;object-fit:contain">`:'<div style="font-size:28px">🏢</div>';
-  const tbl=rows.map((r,i)=>`<tr><td style="text-align:center">${i+1}</td><td><b>${r.nama}</b></td><td>${r.nik}</td><td>${r.jabatan}</td><td>${r.kat}</td><td style="text-align:center;font-weight:700">${r.hadir}</td><td style="text-align:right;${r.ct>0?'color:#C0392B':''}">${r.ct>0?rp(r.ct):'-'}</td><td style="font-size:10px;color:#5A6A7A">${r.ci.length?r.ci.map(c=>(c.ket||'Cashbon')+': '+rp(c.rp)).join(', '):'—'}</td></tr>`).join('');
-  const w=window.open('','_blank','width=900,height=700');
+  const tbl=rows.map((r,i)=>`<tr>
+    <td style="text-align:center">${i+1}</td><td><b>${r.nama}</b></td><td>${r.nik}</td><td>${r.jabatan}</td><td>${r.kat}</td>
+    <td style="text-align:center;font-weight:700">${r.hadir}</td>
+    <td style="text-align:right;font-weight:700;color:#1B7A4B">${rp(r.totGajiEmp)}</td>
+    <td style="text-align:right">${r.tp>0?rp(r.tp):'-'}</td>
+    <td style="text-align:right;${r.ct>0?'color:#C0392B':''}">${r.ct>0?rp(r.ct):'-'}</td>
+    <td style="text-align:right;${r.totPotEmp>0?'color:#C0392B;font-weight:700':''}">${r.totPotEmp>0?rp(r.totPotEmp):'-'}</td>
+    <td style="text-align:right">${r.ptl>0?rp(r.ptl):'-'}</td>
+    <td style="text-align:right">${r.ptm>0?rp(r.ptm):'-'}</td>
+    <td style="text-align:right">${r.ptp>0?rp(r.ptp):'-'}</td>
+    <td style="font-size:9.5px;color:#5A6A7A">${r.ci.length?r.ci.map(c=>(c.ket||'Cashbon')+': '+rp(c.rp)).join(', '):'—'}</td>
+  </tr>`).join('');
+  const w=window.open('','_blank','width=1100,height=750');
+  if(!w){ alert('Popup diblokir browser. Izinkan popup untuk mencetak.'); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>Rekap Harian ${MONTHS[mon]} ${yr}</title><style>
-  *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;font-size:11px;color:#1A2332;padding:16px}
+  *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;font-size:10.5px;color:#1A2332;padding:16px}
   .hd{display:flex;align-items:flex-start;gap:14px;border-bottom:2px solid #1E3A5F;padding-bottom:12px;margin-bottom:16px}
   .co{font-size:15px;font-weight:700;color:#1E3A5F}.co-meta{font-size:9.5px;color:#5A6A7A;margin-top:2px;line-height:1.5}
   .badge{margin-left:auto;text-align:right}.badge .tag{display:inline-block;background:#1E3A5F;color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:5px}
   .badge .sub{font-size:10px;color:#5A6A7A;margin-top:4px}
-  table{width:100%;border-collapse:collapse;font-size:10.5px}
-  th{background:#F0F4F8;padding:7px 8px;text-align:left;font-weight:600;color:#5A6A7A;font-size:10px;text-transform:uppercase;border-bottom:1px solid #D1DCE8}
-  td{padding:6px 8px;border-bottom:1px solid #EEF3F8}
+  .sumr{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+  .sumr2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+  .sumr div,.sumr2 div{background:#F8FAFD;border:1px solid #E3EBF6;border-radius:8px;padding:8px 10px}
+  .sumr .l,.sumr2 .l{font-size:8.5px;color:#5A6A7A;text-transform:uppercase;font-weight:700}
+  .sumr .v,.sumr2 .v{font-size:13px;font-weight:800;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:9.5px}
+  th{background:#F0F4F8;padding:6px 6px;text-align:left;font-weight:600;color:#5A6A7A;font-size:8.5px;text-transform:uppercase;border-bottom:1px solid #D1DCE8;white-space:nowrap}
+  td{padding:5px 6px;border-bottom:1px solid #EEF3F8}
   .tot{background:#F0F4F8;font-weight:700}
   .foot{margin-top:20px;text-align:center;font-size:9px;color:#aaa;border-top:1px dashed #ccc;padding-top:8px}
-  @page{margin:12mm}</style></head><body>
+  @page{size:A4 landscape;margin:10mm}</style></head><body>
   <div class="hd">${logoH}<div><div class="co">${co}</div><div class="co-meta">${CFG.alamat||''}${CFG.kontak?'<br>'+CFG.kontak:''}</div></div>
   <div class="badge"><div class="tag">REKAP HARIAN</div><div class="sub">Periode: ${MONTHS[mon]} ${yr}</div></div></div>
-  <p style="font-size:11px;color:#5A6A7A;margin-bottom:12px">Tanggal cetak: ${today} &bull; Kategori: ${ft==='all'?'Semua Karyawan':TYPE_LABELS[ft]}</p>
-  <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th></tr></thead>
-  <tbody>${tbl}<tr class="tot"><td colspan="5" style="text-align:right;padding-right:8px;color:#1E3A5F">TOTAL</td><td style="text-align:center;color:#1E3A5F">${totH}</td><td style="text-align:right;color:#C0392B">${totC>0?rp(totC):'-'}</td><td></td></tr></tbody></table>
+  <p style="font-size:10.5px;color:#5A6A7A;margin-bottom:10px">Tanggal cetak: ${today} &bull; Kategori: ${ft==='all'?'Semua Karyawan':TYPE_LABELS[ft]}</p>
+  <div class="sumr">
+    <div><div class="l">Total Hari Hadir</div><div class="v">${totH} hari</div></div>
+    <div><div class="l">Total Gaji</div><div class="v" style="color:#1B7A4B">${rp(totGaji)}</div></div>
+    <div><div class="l">Total Pendapatan Tambahan</div><div class="v" style="color:#1565C0">${rp(totPend)}</div></div>
+    <div><div class="l">Total Potongan</div><div class="v" style="color:#C0392B">${rp(totPot)}</div></div>
+  </div>
+  <div class="sumr2">
+    <div><div class="l">Total Cashbon</div><div class="v" style="color:#C0392B">${rp(totC)}</div></div>
+    <div><div class="l">Total Pot. Terlambat</div><div class="v" style="color:#C0392B">${rp(totTerlambat)}</div></div>
+    <div><div class="l">Total Pot. Tdk Absen Masuk</div><div class="v" style="color:#C0392B">${rp(totTM)}</div></div>
+    <div><div class="l">Total Pot. Tdk Absen Pulang</div><div class="v" style="color:#C0392B">${rp(totTP)}</div></div>
+  </div>
+  <table><thead><tr>
+    <th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th>
+    <th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th>
+    <th style="text-align:right">Pend. Tambahan</th><th style="text-align:right">Cashbon</th>
+    <th style="text-align:right">Total Potongan</th><th style="text-align:right">Pot. Terlambat</th>
+    <th style="text-align:right">Pot. Tdk Masuk</th><th style="text-align:right">Pot. Tdk Pulang</th><th>Detail Cashbon</th>
+  </tr></thead>
+  <tbody>${tbl}<tr class="tot">
+    <td colspan="5" style="text-align:right;padding-right:8px;color:#1E3A5F">TOTAL</td>
+    <td style="text-align:center;color:#1E3A5F">${totH}</td>
+    <td style="text-align:right;color:#1B7A4B">${rp(totGaji)}</td>
+    <td style="text-align:right;color:#1565C0">${totPend>0?rp(totPend):'-'}</td>
+    <td style="text-align:right;color:#C0392B">${totC>0?rp(totC):'-'}</td>
+    <td style="text-align:right;color:#C0392B">${totPot>0?rp(totPot):'-'}</td>
+    <td style="text-align:right;color:#C0392B">${totTerlambat>0?rp(totTerlambat):'-'}</td>
+    <td style="text-align:right;color:#C0392B">${totTM>0?rp(totTM):'-'}</td>
+    <td style="text-align:right;color:#C0392B">${totTP>0?rp(totTP):'-'}</td>
+    <td></td>
+  </tr></tbody></table>
   <div class="foot">Dicetak oleh Sistem Penggajian ${co} – ${today}</div>
   <script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();

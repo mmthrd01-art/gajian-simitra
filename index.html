@@ -78,7 +78,7 @@ tbody tr:hover{background:#FAFCFE}
 .sdiv{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
 
 /* MODAL */
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
+.mo{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);z-index:500;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
 .mo.open{display:flex}
 .mbox{background:#fff;border-radius:12px;width:700px;max-width:96vw;box-shadow:0 20px 60px rgba(0,0,0,.25);margin:auto}
 .mhd{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:10}
@@ -149,14 +149,16 @@ tbody tr:hover{background:#FAFCFE}
 .weekly-note{background:var(--accent-light);border:1px solid #F4A820;color:var(--warning);font-size:12px;border-radius:8px;padding:9px 12px;margin-bottom:16px;font-weight:600}
 
 /* LOGIN */
-#login-page{position:fixed;inset:0;z-index:2000;background:linear-gradient(135deg,#142943,#1E3A5F 45%,#2D5A8E);display:flex;align-items:center;justify-content:center;padding:20px}
+#login-page{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2000;background:linear-gradient(135deg,#142943,#1E3A5F 45%,#2D5A8E);display:flex;align-items:center;justify-content:center;padding:20px}
 .login-card{background:#fff;border-radius:16px;width:400px;max-width:100%;padding:36px 32px 30px;box-shadow:0 30px 70px rgba(5,15,30,.45);text-align:center}
 .login-logo-wrap{width:80px;height:80px;border-radius:50%;background:var(--bg);border:2px solid var(--border);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .login-logo-wrap img{width:100%;height:100%;object-fit:contain}
 .login-card h1{font-size:17px;font-weight:700;color:var(--primary);margin-bottom:2px}
 .login-sub{font-size:12px;color:var(--text-muted);margin-bottom:18px}
+.fb-status{font-size:11px;color:var(--warning);background:var(--accent-light);border-radius:6px;padding:6px 10px;margin:-10px 0 16px;display:none;font-weight:600}
+.fb-status.show{display:block}
 .role-tabs{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px}
-.role-tab{flex:1;padding:9px;border:none;background:#fff;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .13s}
+.role-tab{flex:1;padding:9px;border:none;background:#fff;color:var(--text-muted);font-size:13px;font-weight:600;cursor:pointer;transition:all .13s;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .role-tab.active{background:var(--primary);color:#fff}
 .lf{text-align:left;margin-bottom:14px}
 .lf label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:5px}
@@ -164,8 +166,9 @@ tbody tr:hover{background:#FAFCFE}
 .lf input:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(30,58,95,.08)}
 .login-err{background:#FDECEB;color:var(--danger);font-size:12px;border-radius:7px;padding:8px 10px;margin-bottom:14px;display:none;text-align:left;font-weight:600}
 .login-err.show{display:block}
-.login-btn{width:100%;padding:11px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:background .13s;margin-top:4px}
+.login-btn{width:100%;padding:11px;border-radius:8px;border:none;background:var(--primary);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:background .13s;margin-top:4px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .login-btn:hover{background:var(--primary-light)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
 .login-foot{margin-top:18px;font-size:11px;color:var(--text-muted)}
 
 /* EMPLOYEE PORTAL */
@@ -207,9 +210,9 @@ tbody tr:hover{background:#FAFCFE}
 /* =============================================
    RESPONSIVE FIXES — MOBILE & TABLET
    ============================================= */
-.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:98;touch-action:none}
+.sb-overlay{display:none;position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);z-index:98;touch-action:none}
 .sb-overlay.mob-open{display:block}
-.mob-ham{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--primary);color:#fff;border:none;border-radius:8px;width:42px;height:42px;font-size:22px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.35);line-height:1}
+.mob-ham{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--primary);color:#fff;border:none;border-radius:8px;width:42px;height:42px;font-size:22px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.35);line-height:1;touch-action:manipulation}
 
 /* Tablet & Mobile: ≤900px */
 @media(max-width:900px){
@@ -377,6 +380,7 @@ try{
     </div>
     <h1 id="ll-co">CV. MITRA MULTI TEKNIK</h1>
     <p class="login-sub">Sistem Penggajian &bull; Silakan masuk untuk melanjutkan</p>
+    <div class="fb-status" id="fb-status">🔄 Menghubungkan ke server, mohon tunggu sebentar…</div>
     <div class="role-tabs">
       <button class="role-tab active" id="tab-hr" onclick="switchRole('hr')">👔 HR / Admin</button>
       <button class="role-tab" id="tab-emp" onclick="switchRole('emp')">👤 Karyawan</button>
@@ -384,7 +388,7 @@ try{
     <div class="login-err" id="login-err">Username atau kata sandi salah.</div>
     <div class="lf"><label>Username</label><input type="text" id="l-user" placeholder="Username" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <div class="lf"><label>Password</label><input type="password" id="l-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()"></div>
-    <button class="login-btn" onclick="doLogin()">Masuk</button>
+    <button class="login-btn" id="login-submit-btn" onclick="doLogin()">Masuk</button>
     <div class="login-foot">&copy; <span id="l-yr"></span> Mitra Multi Teknik &bull; Electrical &amp; Mechanical</div>
   </div>
 </div>
@@ -742,6 +746,7 @@ function saveCFG(){
 let _fbReady = false;
 function initFirebase(){
   showSync('🔄 Menghubungkan ke cloud…',true);
+  setLoginLoading(true);
   // Data utama
   DB.ref('data').on('value', snap=>{
     const d = snap.val();
@@ -753,6 +758,7 @@ function initFirebase(){
     ['nfc','fc','st'].forEach(t=>{ if(!S.employees[t]) S.employees[t]=[]; });
     if(!S.userAccounts) S.userAccounts=[];
     _fbReady = true;
+    setLoginLoading(false);
     // Re-render halaman yang sedang aktif
     const activePage = document.querySelector('.page.active');
     if(activePage){
@@ -778,6 +784,7 @@ function initFirebase(){
   }, err=>{
     showSync('❌ Firebase error: '+err.message,false);
     console.error('Firebase read error',err);
+    setLoginLoading(false,true);
   });
   // CFG teks
   DB.ref('cfg').on('value', snap=>{
@@ -800,6 +807,25 @@ function initFirebase(){
     if(pg&&pg.id==='page-settings'){ applySettingsUI(); }
     else { renderSlipPreview(); }
   });
+}
+
+// Tampilkan/sembunyikan indikator "menghubungkan ke server" di halaman login,
+// dan kunci sementara tombol Masuk supaya login Karyawan tidak dicoba
+// sebelum data akun karyawan selesai dimuat dari Firebase.
+function setLoginLoading(loading, isError){
+  const fb=el('fb-status'), btn=el('login-submit-btn');
+  if(fb){
+    if(isError){
+      fb.textContent='⚠️ Gagal terhubung ke server. Periksa koneksi internet Anda.';
+      fb.classList.add('show');
+    } else if(loading){
+      fb.textContent='🔄 Menghubungkan ke server, mohon tunggu sebentar…';
+      fb.classList.add('show');
+    } else {
+      fb.classList.remove('show');
+    }
+  }
+  if(btn) btn.disabled=!!loading;
 }
 
 // Stub — tidak dipakai lagi (Firebase pakai listener realtime)
@@ -862,11 +888,13 @@ function switchRole(r){
   _loginRole=r;
   el('tab-hr').classList.toggle('active', r==='hr');
   el('tab-emp').classList.toggle('active', r==='emp');
+  el('login-err').classList.remove('show');
 }
 
 function doLogin(){
   const u=gv('l-user').trim(), p=gv('l-pass');
   const err=el('login-err');
+  err.classList.remove('show');
   if(_loginRole==='hr'){
     if(u===HR_CREDS.u && p===HR_CREDS.p){
       sessionStorage.setItem('mmt_auth','admin');
@@ -875,8 +903,16 @@ function doLogin(){
       renderDashboard();
       applyLogoUI();
       setTimeout(updateMobHam, 100);
-    } else { err.classList.add('show'); el('l-pass').value=''; }
+    } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
   } else {
+    if(!_fbReady){
+      // Data akun karyawan belum selesai dimuat dari server — JANGAN anggap
+      // ini "password salah". Beri tahu apa adanya supaya user tidak bingung
+      // kenapa tombolnya "tidak merespon".
+      err.textContent='Sedang menghubungkan ke server, mohon tunggu beberapa detik lalu coba lagi.';
+      err.classList.add('show');
+      return;
+    }
     const acc=S.userAccounts.find(a=>a.username===u && a.password===p && a.aktif!==false);
     if(acc){
       sessionStorage.setItem('mmt_auth','emp:'+acc.id);
@@ -884,7 +920,7 @@ function doLogin(){
       el('login-page').style.display='none';
       el('emp-portal').style.display='block';
       renderEmpPortal();
-    } else { err.classList.add('show'); el('l-pass').value=''; }
+    } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
   }
 }
 

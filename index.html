@@ -339,6 +339,7 @@ tbody tr:hover{background:#FAFCFE}
 <!-- Firebase SDK (compat mode – bekerja tanpa import/module) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════════
 //  KONFIGURASI FIREBASE — PROYEK: penggajian-mmt
@@ -742,11 +743,9 @@ function saveCFG(){
   else          DB.ref('cfg_img/ttd').remove().catch(()=>{});
 }
 
-// ── Muat data dari Firebase (dipanggil sekali saat boot)
+// ── Muat data dari Firebase (dipanggil sekali saat boot, SETELAH login anonim berhasil)
 let _fbReady = false;
-function initFirebase(){
-  showSync('🔄 Menghubungkan ke cloud…',true);
-  setLoginLoading(true);
+function attachFirebaseListeners(){
   // Data utama
   DB.ref('data').on('value', snap=>{
     const d = snap.val();
@@ -806,6 +805,26 @@ function initFirebase(){
     const pg=document.querySelector('.page.active');
     if(pg&&pg.id==='page-settings'){ applySettingsUI(); }
     else { renderSlipPreview(); }
+  });
+}
+
+// ── Login anonim ke Firebase Auth dulu, baru pasang listener database.
+// Ini WAJIB karena Realtime Database Rules sekarang mensyaratkan
+// "auth != null" — tanpa login anonim, semua pembacaan akan ditolak
+// dengan error permission_denied (persis gejala yang sebelumnya terjadi).
+function initFirebase(){
+  showSync('🔄 Menghubungkan ke cloud…',true);
+  setLoginLoading(true);
+  firebase.auth().signInAnonymously().catch(e=>{
+    console.error('❌ Firebase auth error:', e);
+    showSync('❌ Gagal autentikasi: '+e.message,false);
+    setLoginLoading(false,true);
+  });
+  firebase.auth().onAuthStateChanged(user=>{
+    if(user){
+      console.log('✅ Login anonim berhasil, uid:', user.uid);
+      attachFirebaseListeners();
+    }
   });
 }
 

@@ -1011,6 +1011,7 @@ function updateEPSalary(){
   const lp=emp.lemburPerJam||0;
   const totLem=sd.lembur.reduce((a,b)=>a+(b*lp),0);
   const totPend=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+  const totLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
   const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0);
   const ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0);
   const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
@@ -1019,7 +1020,7 @@ function updateEPSalary(){
   let gajiDasar=0;
   if(empType==='nfc') gajiDasar=(emp.gajiPerHari||0)*sd.jumlahHadir;
   else { const gp=sd.gajiPokok||emp.gajiPokok||0,tj=sd.tunjJabatan||emp.tunjJabatan||0; gajiDasar=gp+tj+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir; }
-  const totBersih=gajiDasar+totLem+totPend-totPot;
+  const totBersih=gajiDasar+totLem+totPend+totLain-totPot;
   let gajiRows='';
   if(empType==='nfc') gajiRows=`<div class="sv-row"><span>Gaji pokok (${sd.jumlahHadir} hari × ${rp(emp.gajiPerHari)})</span><span>${rp(gajiDasar)}</span></div>`;
   else {
@@ -1030,14 +1031,15 @@ function updateEPSalary(){
       <div class="sv-row"><span>Tunjangan harian (${sd.jumlahHadir} hari)</span><span>${rp(th)}</span></div>`;
   }
   const pendRows=sd.pendapatanTambahan.filter(p=>p.rp>0).map(p=>`<div class="sv-row"><span>Tambahan${p.ket?' – '+p.ket:''}</span><span>${rp(p.rp)}</span></div>`).join('');
+  const lainRows=(sd.pembayaranLain||[]).filter(p=>p.rp>0).map(p=>`<div class="sv-row"><span>Pembayaran lain${p.ket?' – '+p.ket:''}</span><span>${rp(p.rp)}</span></div>`).join('');
   const cashRows=sd.cashbon.filter(c=>c.rp>0).map(c=>`<div class="sv-row"><span style="color:var(--danger)">Cashbon${c.ket?' – '+c.ket:''}</span><span style="color:var(--danger)">- ${rp(c.rp)}</span></div>`).join('');
   el('ep-sal').innerHTML=`
     <div class="sv-card">
-      <div class="sv-head">Rincian Gaji – ${MONTHS[mon]} ${yr}</div>
+      <div class="sv-head">Rincian Gaji – ${MONTHS[mon]} ${yr} <span style="float:right;font-size:11px;font-weight:600;color:var(--text-muted)">${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
       <div class="sv-body">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Penghasilan</div>
-        ${gajiRows}${totLem>0?`<div class="sv-row"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}${pendRows}
-        <div class="sv-row" style="font-weight:700;color:var(--primary)"><span>Jumlah Penghasilan</span><span>${rp(gajiDasar+totLem+totPend)}</span></div>
+        ${gajiRows}${totLem>0?`<div class="sv-row"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}${pendRows}${lainRows}
+        <div class="sv-row" style="font-weight:700;color:var(--primary)"><span>Jumlah Penghasilan</span><span>${rp(gajiDasar+totLem+totPend+totLain)}</span></div>
         ${totPot>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--danger);margin:12px 0 6px">Potongan</div>
         ${cashRows}
         ${ptl>0?`<div class="sv-row"><span style="color:var(--danger)">Potongan terlambat (${sd.potTerlambatJml}×)</span><span style="color:var(--danger)">- ${rp(ptl)}</span></div>`:''}
@@ -1174,9 +1176,14 @@ function getSalData(type,emp,mon,yr){
     pendapatanTambahan:Array(10).fill(null).map(()=>({tanggal:'',rp:0,ket:''})),
     cashbon:Array(10).fill(null).map(()=>({tanggal:'',rp:0,ket:''})),
     gajiPokok:emp.gajiPokok||0, tunjJabatan:emp.tunjJabatan||0,
-    potTerlambatJml:0, potTdkMasukJml:0, potTdkPulangJml:0
+    potTerlambatJml:0, potTdkMasukJml:0, potTdkPulangJml:0,
+    metodeBayar:'transfer',
+    pembayaranLain:Array(10).fill(null).map(()=>({ket:'',rp:0}))
   };
-  return S.salaries[k];
+  const sd=S.salaries[k];
+  if(!sd.metodeBayar) sd.metodeBayar='transfer';
+  if(!sd.pembayaranLain) sd.pembayaranLain=Array(10).fill(null).map(()=>({ket:'',rp:0}));
+  return sd;
 }
 
 // ==================== GAJI PAGE ====================
@@ -1215,10 +1222,11 @@ function renderGajiTable(type){
       const gh=(emp.gajiPerHari||0)*sd.jumlahHadir;
       const tl=sd.lembur.reduce((a,b)=>a+(b*(emp.lemburPerJam||0)),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const pot=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0)+(sd.potTerlambatJml||0)*(emp.potTerlambat||0)+(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0)+(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
-      const tot=gh+tl+tp-pot; totGaji+=tot;
+      const tot=gh+tl+tp+tLain-pot; totGaji+=tot;
       return `<tr><td><b>${emp.nama}</b><br><small style="color:var(--text-muted)">${emp.jabatan}</small></td>
-        <td>${sd.jumlahHadir} hari</td><td>${rp(gh)}</td><td>${rp(tl)}</td><td>${rp(tp)}</td>
+        <td>${sd.jumlahHadir} hari</td><td>${rp(gh)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('nfc','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
     }).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
@@ -1230,10 +1238,11 @@ function renderGajiTable(type){
       const gpj=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0);
       const tl=sd.lembur.reduce((a,b)=>a+(b*(emp.lemburPerJam||0)),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const pot=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0)+(sd.potTerlambatJml||0)*(emp.potTerlambat||0)+(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0)+(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
-      const tot=gpj+th+tl+tp-pot; totGaji+=tot;
+      const tot=gpj+th+tl+tp+tLain-pot; totGaji+=tot;
       return `<tr><td><b>${emp.nama}</b><br><small style="color:var(--text-muted)">${emp.jabatan}</small></td>
-        <td>${sd.jumlahHadir} hari</td><td>${rp(gpj)}</td><td>${rp(th)}</td><td>${rp(tl)}</td><td>${rp(tp)}</td>
+        <td>${sd.jumlahHadir} hari</td><td>${rp(gpj)}</td><td>${rp(th)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('${type}','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
     }).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
@@ -1257,6 +1266,9 @@ function openSalDetail(type,empId,mon,yr){
     <input type="date" id="ct-${i}" value="${c.tanggal||''}" style="min-width:130px;flex:none">
     <input type="number" id="cr-${i}" value="${c.rp||0}" placeholder="Rp" oninput="calcSal()">
     <input type="text" id="ck-${i}" value="${c.ket||''}" placeholder="Keterangan" style="flex:2;min-width:80px"></div>`).join('');
+  const lainRows=(sd.pembayaranLain||[]).map((p,i)=>`<div class="subrow">
+    <input type="text" id="lk-${i}" value="${p.ket||''}" placeholder="Keterangan pembayaran lain..." style="flex:2;min-width:140px">
+    <input type="number" id="lr-${i}" value="${p.rp||0}" placeholder="Rp" oninput="calcSal()"></div>`).join('');
   let fixBlk='';
   if(type!=='nfc') fixBlk=`<div class="sal-block"><div class="sdiv" style="margin-top:0">Gaji Pokok &amp; Tunjangan Jabatan</div>
     <div class="fg2" style="margin-bottom:10px">
@@ -1272,6 +1284,13 @@ function openSalDetail(type,empId,mon,yr){
       <div class="fg"><label>Jumlah Hari Hadir</label><input type="number" id="sd-hadir" value="${sd.jumlahHadir||0}" min="0" max="31" oninput="calcSal()"></div>
       ${type==='nfc'?`<div class="fg"><label>Gaji Per Hari (dari Profil)</label><input readonly value="${rp(emp.gajiPerHari||0)}" style="background:var(--bg)"></div>`:''}
     </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Metode Pembayaran Gaji</label>
+      <select id="sd-metode" onchange="calcSal()">
+        <option value="transfer" ${sd.metodeBayar!=='cash'?'selected':''}>💳 Transfer</option>
+        <option value="cash" ${sd.metodeBayar==='cash'?'selected':''}>💵 Cash</option>
+      </select>
+    </div>
     ${fixBlk}
     <div class="sdiv">Lembur</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -1284,6 +1303,9 @@ function openSalDetail(type,empId,mon,yr){
     <div class="sdiv" style="margin-top:14px">Pendapatan Tambahan</div>
     ${pendRows}
     <div class="sal-row"><span style="color:var(--text-muted)">Total Pendapatan Tambahan</span><span id="sc-pend">-</span></div>
+    <div class="sdiv" style="margin-top:14px">Pembayaran Lain-lain</div>
+    ${lainRows}
+    <div class="sal-row"><span style="color:var(--text-muted)">Total Pembayaran Lain-lain</span><span id="sc-lain">-</span></div>
     <div class="sdiv" style="margin-top:14px">POTONGAN</div>
     ${cashRows}
     <div class="fg3" style="margin:10px 0">
@@ -1308,25 +1330,28 @@ function calcSal(){
   else { const gp=pn(gv('sd-gp')), tj=pn(gv('sd-tj')); base=gp+tj+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*hadir; }
   let totLem=0; for(let i=0;i<12;i++) totLem+=pf(gv('ls-'+i))*(emp.lemburPerJam||0);
   let totPend=0; for(let i=0;i<10;i++) totPend+=pn(gv('pr-'+i));
+  let totLain=0; for(let i=0;i<10;i++) totLain+=pn(gv('lr-'+i));
   let totCash=0; for(let i=0;i<10;i++) totCash+=pn(gv('cr-'+i));
   const ptl=(parseInt(gv('sd-ptl'))||0)*(emp.potTerlambat||0);
   const ptm=(parseInt(gv('sd-ptm'))||0)*(emp.potTdkMasuk||0);
   const ptp=(parseInt(gv('sd-ptp'))||0)*(emp.potTdkPulang||0);
   const totPot=totCash+ptl+ptm+ptp;
-  setText('sc-lem',rp(totLem)); setText('sc-pend',rp(totPend));
+  setText('sc-lem',rp(totLem)); setText('sc-pend',rp(totPend)); setText('sc-lain',rp(totLain));
   setText('sc-ptl',rp(ptl)); setText('sc-ptm',rp(ptm)); setText('sc-ptp',rp(ptp));
-  setText('sc-pot',rp(totPot)); setText('sc-final',rp(base+totLem+totPend-totPot));
+  setText('sc-pot',rp(totPot)); setText('sc-final',rp(base+totLem+totPend+totLain-totPot));
 }
 
 function saveSalDetail(){
   const type=_salType, emp=S.employees[type].find(e=>e.id===_salEmpId);
   const sd=getSalData(type,emp,_salMon,_salYr);
   sd.jumlahHadir=parseInt(gv('sd-hadir'))||0;
+  sd.metodeBayar=gv('sd-metode')||'transfer';
   sd.lemburYear=parseInt(gv('sd-lemyr'))||_salYr;
   for(let i=0;i<12;i++) sd.lembur[i]=pf(gv('ls-'+i));
   for(let i=0;i<10;i++){
     sd.pendapatanTambahan[i]={tanggal:gv('pt-'+i),rp:pn(gv('pr-'+i)),ket:gv('pk-'+i)};
     sd.cashbon[i]={tanggal:gv('ct-'+i),rp:pn(gv('cr-'+i)),ket:gv('ck-'+i)};
+    sd.pembayaranLain[i]={ket:gv('lk-'+i),rp:pn(gv('lr-'+i))};
   }
   if(type!=='nfc'){ sd.gajiPokok=pn(gv('sd-gp')); sd.tunjJabatan=pn(gv('sd-tj')); }
   sd.potTerlambatJml=parseInt(gv('sd-ptl'))||0;
@@ -1351,10 +1376,11 @@ function openSlip(type,empId,mon,yr){
   }
   const totLem=sd.lembur.reduce((a,b)=>a+(b*lp),0);
   const totPend=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+  const totLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
   const totCash=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
   const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0), ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0), ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
   const totPot=totCash+ptl+ptm+ptp;
-  const totPenghasilan=base+totLem+totPend, totBersih=totPenghasilan-totPot;
+  const totPenghasilan=base+totLem+totPend+totLain, totBersih=totPenghasilan-totPot;
   const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   const logoH=CFG.logo?`<img src="${CFG.logo}">`:'<span style="font-size:22px">🏢</span>';
   const ttdH=CFG.ttd?`<img src="${CFG.ttd}">`:'';
@@ -1367,6 +1393,7 @@ function openSlip(type,empId,mon,yr){
     <div class="slip-line m"><span>Tunj. makan (${sd.jumlahHadir}×${rp(emp.tunjMakan||0)})</span><span>${rp((emp.tunjMakan||0)*sd.jumlahHadir)}</span></div>
     <div class="slip-line m"><span>Tunj. transport (${sd.jumlahHadir}×${rp(emp.tunjTransport||0)})</span><span>${rp((emp.tunjTransport||0)*sd.jumlahHadir)}</span></div>`;
   const pendH=sd.pendapatanTambahan.filter(p=>p.rp>0).map(p=>`<div class="slip-line m"><span>Tambahan${p.ket?' – '+p.ket:''}</span><span>${rp(p.rp)}</span></div>`).join('');
+  const lainH=(sd.pembayaranLain||[]).filter(p=>p.rp>0).map(p=>`<div class="slip-line m"><span>Pembayaran lain${p.ket?' – '+p.ket:''}</span><span>${rp(p.rp)}</span></div>`).join('');
   const cashH=sd.cashbon.filter(c=>c.rp>0).map(c=>`<div class="slip-line m"><span>Cashbon${c.ket?' – '+c.ket:''}</span><span style="color:var(--danger)">- ${rp(c.rp)}</span></div>`).join('');
   el('mo-slip-body').innerHTML=`<div id="slip-area">
     <div class="slip-doc"><div class="slip-accent"></div><div class="slip-body">
@@ -1378,11 +1405,13 @@ function openSlip(type,empId,mon,yr){
       <div class="slip-id-grid">
         <div><span>Nama</span><span>${emp.nama}</span></div><div><span>NIK</span><span>${emp.nik||''}</span></div>
         <div><span>Jabatan</span><span>${emp.jabatan||''}</span></div><div><span>Tanggal</span><span>${today}</span></div>
+        <div><span>Metode</span><span>${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
       </div>
       <div class="slip-sec">Penghasilan</div>
       ${gajiRows}
       ${totLem>0?`<div class="slip-line m"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}
       ${pendH}
+      ${lainH}
       <div class="slip-sub"><span>Jumlah Penghasilan</span><span>${rp(totPenghasilan)}</span></div>
       ${totPot>0?`<div class="slip-sec red">Potongan</div>${cashH}
         ${ptl>0?`<div class="slip-line m"><span>Potongan terlambat (${sd.potTerlambatJml}×)</span><span style="color:var(--danger)">- ${rp(ptl)}</span></div>`:''}
@@ -1445,12 +1474,13 @@ function renderDashboard(){
       const lp=emp.lemburPerJam||0;
       const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0), ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0), ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
       const tc=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0), tpot=tc+ptl+ptm+ptp;
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const g=base+tl+tp-tpot; tot+=g; lem+=tl; denda+=ptl+ptm+ptp; hadir+=sd.jumlahHadir;
+      const g=base+tl+tp+tLain-tpot; tot+=g; lem+=tl; denda+=ptl+ptm+ptp; hadir+=sd.jumlahHadir;
     });
     gTot+=tot; gLem+=lem; gDenda+=denda; gHadir+=hadir;
     return `<tr><td>${TYPE_LABELS[type]}</td><td>${emps.length} orang</td><td>${rp(tot-lem+lem)}</td><td>${rp(lem)}</td><td style="color:var(--danger)">${rp(denda)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td></tr>`;
@@ -1460,18 +1490,28 @@ function renderDashboard(){
 }
 
 // ==================== REKAP HARIAN ====================
+function setMetodeBayar(type,empId,mon,yr,metode){
+  const emp=S.employees[type].find(e=>e.id===empId); if(!emp) return;
+  const sd=getSalData(type,emp,mon,yr);
+  sd.metodeBayar=metode;
+  saveState();
+  renderRekap();
+}
+
 function renderRekap(){
   const mon=parseInt(gv('rek-mon')||new Date().getMonth());
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totPot=0, totTerlambat=0, totTM=0, totTP=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
       const lp=emp.lemburPerJam||0;
       const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLainEmp=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
+      const lainDetail=(sd.pembayaranLain||[]).filter(p=>p.rp>0);
       const ct=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
       const ci=sd.cashbon.filter(c=>c.rp>0);
       const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0);
@@ -1481,10 +1521,12 @@ function renderRekap(){
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const totGajiEmp=base+tl+tp-totPotEmp;
-      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totPot+=totPotEmp;
+      const totGajiEmp=base+tl+tp+tLainEmp-totPotEmp;
+      const metode=sd.metodeBayar==='cash'?'cash':'transfer';
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp;
       totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
-      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,totPotEmp,ptl,ptm,ptp});
+      if(metode==='cash') totCashBayar+=totGajiEmp; else totTransferBayar+=totGajiEmp;
+      rows.push({empId:emp.id,type,nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,totPotEmp,ptl,ptm,ptp,metode});
     });
   });
   if(!rows.length){ el('rek-content').innerHTML='<div style="padding:30px;text-align:center;color:var(--text-muted)">Belum ada data karyawan aktif.</div>'; return; }
@@ -1501,9 +1543,14 @@ function renderRekap(){
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Masuk</div><div class="sc-val" style="font-size:16px">${rp(totTM)}</div></div>
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Pulang</div><div class="sc-val" style="font-size:16px">${rp(totTP)}</div></div>
     </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="sc i" style="flex:1;min-width:160px;padding:12px 16px;border-left:4px solid #7C3AED"><div class="sc-label">Total Pembayaran Lain-lain</div><div class="sc-val" style="font-size:18px;color:#7C3AED">${rp(totLain)}</div></div>
+      <div class="sc s" style="flex:1;min-width:160px;padding:12px 16px"><div class="sc-label">💵 Total Dibayar Cash</div><div class="sc-val" style="font-size:18px">${rp(totCashBayar)}</div></div>
+      <div class="sc i" style="flex:1;min-width:160px;padding:12px 16px"><div class="sc-label">💳 Total Dibayar Transfer</div><div class="sc-val" style="font-size:18px">${rp(totTransferBayar)}</div></div>
+    </div>
     <div class="card">
       <div class="card-hd"><span class="card-title">Rekap Harian – ${MONTHS[mon]} ${yr}</span></div>
-      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:center">Metode Bayar</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th><th>Pembayaran Lain-lain</th></tr></thead>
       <tbody>
         ${rows.map((r,i)=>`<tr>
           <td style="color:var(--text-muted);font-size:12px">${i+1}</td><td><b>${r.nama}</b></td>
@@ -1511,15 +1558,22 @@ function renderRekap(){
           <td><span class="badge badge-i">${r.kat}</span></td>
           <td style="text-align:center;font-weight:700">${r.hadir}</td>
           <td style="text-align:right;font-weight:700;color:var(--primary)">${rp(r.totGajiEmp)}</td>
+          <td style="text-align:center;white-space:nowrap">
+            <label style="margin-right:8px;font-size:11.5px;cursor:pointer"><input type="checkbox" ${r.metode==='cash'?'checked':''} onchange="setMetodeBayar('${r.type}','${r.empId}',${mon},${yr},'cash')"> 💵 Cash</label>
+            <label style="font-size:11.5px;cursor:pointer"><input type="checkbox" ${r.metode==='transfer'?'checked':''} onchange="setMetodeBayar('${r.type}','${r.empId}',${mon},${yr},'transfer')"> 💳 Transfer</label>
+          </td>
           <td style="text-align:right;${r.ct>0?'color:var(--danger);font-weight:700':''}">${r.ct>0?rp(r.ct):'-'}</td>
           <td style="font-size:11.5px;color:var(--text-muted)">${r.ci.length?r.ci.map(c=>(c.ket||'Cashbon')+': '+rp(c.rp)).join('<br>'):'—'}</td>
+          <td style="font-size:11.5px;color:#7C3AED">${r.lainDetail.length?r.lainDetail.map(p=>(p.ket||'Pembayaran')+': '+rp(p.rp)).join('<br>'):'—'}</td>
         </tr>`).join('')}
         <tr style="background:var(--bg);font-weight:700">
           <td colspan="5" style="text-align:right;color:var(--primary);padding-right:12px">TOTAL</td>
           <td style="text-align:center;color:var(--primary)">${totH}</td>
           <td style="text-align:right;color:var(--primary)">${rp(totGaji)}</td>
+          <td style="text-align:center;font-size:11px;color:var(--text-muted)">Cash: ${rp(totCashBayar)}<br>Transfer: ${rp(totTransferBayar)}</td>
           <td style="text-align:right;color:var(--danger)">${totC>0?rp(totC):'-'}</td>
           <td></td>
+          <td style="color:#7C3AED">${totLain>0?rp(totLain):'-'}</td>
         </tr>
       </tbody></table>
     </div>`;
@@ -1530,13 +1584,15 @@ function printRekap(){
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totPot=0, totTerlambat=0, totTM=0, totTP=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
       const lp=emp.lemburPerJam||0;
       const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLainEmp=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
+      const lainDetail=(sd.pembayaranLain||[]).filter(p=>p.rp>0);
       const ct=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
       const ci=sd.cashbon.filter(c=>c.rp>0);
       const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0);
@@ -1546,10 +1602,12 @@ function printRekap(){
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const totGajiEmp=base+tl+tp-totPotEmp;
-      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totPot+=totPotEmp;
+      const totGajiEmp=base+tl+tp+tLainEmp-totPotEmp;
+      const metode=sd.metodeBayar==='cash'?'cash':'transfer';
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp;
       totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
-      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,totPotEmp,ptl,ptm,ptp});
+      if(metode==='cash') totCashBayar+=totGajiEmp; else totTransferBayar+=totGajiEmp;
+      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,totPotEmp,ptl,ptm,ptp,metode});
     });
   });
   const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
@@ -1559,13 +1617,16 @@ function printRekap(){
     <td style="text-align:center">${i+1}</td><td><b>${r.nama}</b></td><td>${r.nik}</td><td>${r.jabatan}</td><td>${r.kat}</td>
     <td style="text-align:center;font-weight:700">${r.hadir}</td>
     <td style="text-align:right;font-weight:700;color:#1B7A4B">${rp(r.totGajiEmp)}</td>
+    <td style="text-align:center">${r.metode==='cash'?'💵 Cash':'💳 Transfer'}</td>
     <td style="text-align:right">${r.tp>0?rp(r.tp):'-'}</td>
+    <td style="text-align:right;color:#7C3AED">${r.tLainEmp>0?rp(r.tLainEmp):'-'}</td>
     <td style="text-align:right;${r.ct>0?'color:#C0392B':''}">${r.ct>0?rp(r.ct):'-'}</td>
     <td style="text-align:right;${r.totPotEmp>0?'color:#C0392B;font-weight:700':''}">${r.totPotEmp>0?rp(r.totPotEmp):'-'}</td>
     <td style="text-align:right">${r.ptl>0?rp(r.ptl):'-'}</td>
     <td style="text-align:right">${r.ptm>0?rp(r.ptm):'-'}</td>
     <td style="text-align:right">${r.ptp>0?rp(r.ptp):'-'}</td>
     <td style="font-size:9.5px;color:#5A6A7A">${r.ci.length?r.ci.map(c=>(c.ket||'Cashbon')+': '+rp(c.rp)).join(', '):'—'}</td>
+    <td style="font-size:9.5px;color:#7C3AED">${r.lainDetail.length?r.lainDetail.map(p=>(p.ket||'Pembayaran')+': '+rp(p.rp)).join(', '):'—'}</td>
   </tr>`).join('');
   const w=window.open('','_blank','width=1100,height=750');
   if(!w){ alert('Popup diblokir browser. Izinkan popup untuk mencetak.'); return; }
@@ -1576,10 +1637,11 @@ function printRekap(){
   .badge{margin-left:auto;text-align:right}.badge .tag{display:inline-block;background:#1E3A5F;color:#fff;font-size:11px;font-weight:700;padding:4px 12px;border-radius:5px}
   .badge .sub{font-size:10px;color:#5A6A7A;margin-top:4px}
   .sumr{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
-  .sumr2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-  .sumr div,.sumr2 div{background:#F8FAFD;border:1px solid #E3EBF6;border-radius:8px;padding:8px 10px}
-  .sumr .l,.sumr2 .l{font-size:8.5px;color:#5A6A7A;text-transform:uppercase;font-weight:700}
-  .sumr .v,.sumr2 .v{font-size:13px;font-weight:800;margin-top:2px}
+  .sumr2{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+  .sumr3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .sumr div,.sumr2 div,.sumr3 div{background:#F8FAFD;border:1px solid #E3EBF6;border-radius:8px;padding:8px 10px}
+  .sumr .l,.sumr2 .l,.sumr3 .l{font-size:8.5px;color:#5A6A7A;text-transform:uppercase;font-weight:700}
+  .sumr .v,.sumr2 .v,.sumr3 .v{font-size:13px;font-weight:800;margin-top:2px}
   table{width:100%;border-collapse:collapse;font-size:9.5px}
   th{background:#F0F4F8;padding:6px 6px;text-align:left;font-weight:600;color:#5A6A7A;font-size:8.5px;text-transform:uppercase;border-bottom:1px solid #D1DCE8;white-space:nowrap}
   td{padding:5px 6px;border-bottom:1px solid #EEF3F8}
@@ -1601,24 +1663,31 @@ function printRekap(){
     <div><div class="l">Total Pot. Tdk Absen Masuk</div><div class="v" style="color:#C0392B">${rp(totTM)}</div></div>
     <div><div class="l">Total Pot. Tdk Absen Pulang</div><div class="v" style="color:#C0392B">${rp(totTP)}</div></div>
   </div>
+  <div class="sumr3">
+    <div><div class="l">Total Pembayaran Lain-lain</div><div class="v" style="color:#7C3AED">${rp(totLain)}</div></div>
+    <div><div class="l">💵 Total Dibayar Cash</div><div class="v" style="color:#1B7A4B">${rp(totCashBayar)}</div></div>
+    <div><div class="l">💳 Total Dibayar Transfer</div><div class="v" style="color:#1565C0">${rp(totTransferBayar)}</div></div>
+  </div>
   <table><thead><tr>
     <th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th>
-    <th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th>
-    <th style="text-align:right">Pend. Tambahan</th><th style="text-align:right">Cashbon</th>
+    <th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:center">Metode</th>
+    <th style="text-align:right">Pend. Tambahan</th><th style="text-align:right">Pembayaran Lain</th><th style="text-align:right">Cashbon</th>
     <th style="text-align:right">Total Potongan</th><th style="text-align:right">Pot. Terlambat</th>
-    <th style="text-align:right">Pot. Tdk Masuk</th><th style="text-align:right">Pot. Tdk Pulang</th><th>Detail Cashbon</th>
+    <th style="text-align:right">Pot. Tdk Masuk</th><th style="text-align:right">Pot. Tdk Pulang</th><th>Detail Cashbon</th><th>Detail Pembayaran Lain</th>
   </tr></thead>
   <tbody>${tbl}<tr class="tot">
     <td colspan="5" style="text-align:right;padding-right:8px;color:#1E3A5F">TOTAL</td>
     <td style="text-align:center;color:#1E3A5F">${totH}</td>
     <td style="text-align:right;color:#1B7A4B">${rp(totGaji)}</td>
+    <td style="text-align:center;font-size:8px;color:#1E3A5F">C:${rp(totCashBayar)}<br>T:${rp(totTransferBayar)}</td>
     <td style="text-align:right;color:#1565C0">${totPend>0?rp(totPend):'-'}</td>
+    <td style="text-align:right;color:#7C3AED">${totLain>0?rp(totLain):'-'}</td>
     <td style="text-align:right;color:#C0392B">${totC>0?rp(totC):'-'}</td>
     <td style="text-align:right;color:#C0392B">${totPot>0?rp(totPot):'-'}</td>
     <td style="text-align:right;color:#C0392B">${totTerlambat>0?rp(totTerlambat):'-'}</td>
     <td style="text-align:right;color:#C0392B">${totTM>0?rp(totTM):'-'}</td>
     <td style="text-align:right;color:#C0392B">${totTP>0?rp(totTP):'-'}</td>
-    <td></td>
+    <td></td><td></td>
   </tr></tbody></table>
   <div class="foot">Dicetak oleh Sistem Penggajian ${co} – ${today}</div>
   <script>window.onload=()=>window.print()<\/script></body></html>`);
@@ -1780,12 +1849,13 @@ function getMonAgg(mon,yr){
       const sd=getSalData(type,e,mon,yr),lp=e.lemburPerJam||0;
       const tl=sd.lembur.reduce((a,b)=>a+(b*lp),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
+      const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const ptl=(sd.potTerlambatJml||0)*(e.potTerlambat||0),ptm=(sd.potTdkMasukJml||0)*(e.potTdkMasuk||0),ptp=(sd.potTdkPulangJml||0)*(e.potTdkPulang||0);
       const tc=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0),tpot=tc+ptl+ptm+ptp;
       let base=0;
       if(type==='nfc') base=(e.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||e.gajiPokok||0)+(sd.tunjJabatan||e.tunjJabatan||0)+((e.tunjKehadiran||0)+(e.tunjMakan||0)+(e.tunjTransport||0))*sd.jumlahHadir;
-      gaji+=base+tl+tp-tpot; lem+=tl; denda+=ptl+ptm+ptp;
+      gaji+=base+tl+tp+tLain-tpot; lem+=tl; denda+=ptl+ptm+ptp;
     });
   });
   return {emp,gaji,lem,denda};

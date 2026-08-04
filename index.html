@@ -606,10 +606,10 @@ try{
         <label>Kategori:</label>
         <select id="izin-f-kat" onchange="renderIzinAdmin()">
           <option value="all">Semua Kategori</option>
-          <option value="Sakit">Sakit</option>
+          <option value="Izin Sakit">Izin Sakit</option>
           <option value="Izin Melayat">Izin Melayat</option>
-          <option value="Izin Mendampingi Istri Melahirkan">Izin Mendampingi Istri Melahirkan</option>
-          <option value="Izin Mendampingi Orang Tua">Izin Mendampingi Orang Tua</option>
+          <option value="Izin Menemani Keluarga Berobat">Izin Menemani Keluarga Berobat</option>
+          <option value="Izin Urgent Lainnya">Izin Urgent Lainnya</option>
         </select>
         <input type="text" class="search-box" id="izin-f-search" placeholder="🔍 Cari nama karyawan..." oninput="renderIzinAdmin()" style="max-width:220px">
         <button class="print-btn" onclick="exportIzinExcel()">📊 Export Excel</button>
@@ -672,6 +672,23 @@ try{
         <div class="card">
           <div class="card-hd"><span class="card-title">📄 Preview Header Slip</span></div>
           <div id="slip-preview" style="border:1px solid var(--border);border-radius:8px;padding:14px;background:#FAFCFE;font-size:12px"></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-title">✅ Penyetuju Pengajuan Izin</span></div>
+          <div class="info-box" style="margin-bottom:12px">ℹ️ &nbsp;Setiap pengajuan izin baru bisa dikonfirmasi <b>"Diizinkan"</b> setelah disetujui oleh <b>kedua</b> penyetuju di bawah ini.</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="fg"><label>Nama Penyetuju 1</label><input type="text" id="set-approver1" placeholder="cth. Manager Operasional" oninput="saveSettings()"></div>
+            <div class="fg"><label>Nama Penyetuju 2</label><input type="text" id="set-approver2" placeholder="cth. HRD / Direktur" oninput="saveSettings()"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-title">☎️ Nomor WhatsApp HRD</span></div>
+          <div class="info-box" style="margin-bottom:12px">ℹ️ &nbsp;Nomor ini dipakai tombol <b>"Kirim ke WA HRD"</b> di formulir pengajuan izin karyawan.</div>
+          <div class="fg">
+            <label>Nomor WhatsApp (boleh diawali 0 atau 62)</label>
+            <input type="text" id="set-wa-hrd" placeholder="cth. 082259979760" oninput="saveSettings()">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Nomor aktif saat ini: <b id="set-wa-preview">-</b></div>
         </div>
       </div>
     </div>
@@ -750,8 +767,15 @@ try{
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const TYPE_LABELS = {nfc:'Tim Ops Non-Fix', fc:'Tim Ops Fix Cost', st:'Staff'};
 const HR_CREDS = {u:'Ghazali', p:'mmt12345'};
-const IZIN_KATEGORI = ['Sakit','Izin Melayat','Izin Mendampingi Istri Melahirkan','Izin Mendampingi Orang Tua'];
-const HRD_WA_NUMBER = '6282259979760';
+const IZIN_KATEGORI = ['Izin Sakit','Izin Melayat','Izin Menemani Keluarga Berobat','Izin Urgent Lainnya'];
+const HRD_WA_NUMBER_DEFAULT = '6282259979760';
+function normalizeWaNumber(v){
+  let d=(v||'').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.startsWith('0')) d='62'+d.slice(1);
+  else if(!d.startsWith('62')) d='62'+d;
+  return d;
+}
 
 // ==================== STATE ====================
 let S = {
@@ -760,7 +784,7 @@ let S = {
   userAccounts: [],
   izinRequests: []
 };
-let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:''};
+let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:''};
 
 let _empType=null, _empId=null;
 let _salType=null, _salEmpId=null, _salMon=null, _salYr=null;
@@ -815,7 +839,10 @@ function saveCFG(){
     hrdNama: CFG.hrdNama||'',
     nama:    CFG.nama||'CV. MITRA MULTI TEKNIK',
     alamat:  CFG.alamat||'',
-    kontak:  CFG.kontak||''
+    kontak:  CFG.kontak||'',
+    approver1: CFG.approver1||'',
+    approver2: CFG.approver2||'',
+    waHrd:   CFG.waHrd||''
   }).catch(e=>console.error('saveCFG txt',e));
   // Logo & TTD sebagai base64 (hanya jika ada)
   if(CFG.logo)  DB.ref('cfg_img/logo').set(CFG.logo).catch(()=>{});
@@ -879,10 +906,12 @@ function attachFirebaseListeners(){
   // CFG teks
   DB.ref('cfg').on('value', snap=>{
     const d=snap.val();
-    if(d) Object.assign(CFG,{hrdNama:d.hrdNama||'',nama:d.nama||'CV. MITRA MULTI TEKNIK',alamat:d.alamat||'',kontak:d.kontak||''});
+    if(d) Object.assign(CFG,{hrdNama:d.hrdNama||'',nama:d.nama||'CV. MITRA MULTI TEKNIK',alamat:d.alamat||'',kontak:d.kontak||'',approver1:d.approver1||'',approver2:d.approver2||'',waHrd:d.waHrd||''});
     applyLogoUI();
     renderSlipPreview();
     const lc=el('ll-co'); if(lc&&CFG.nama) lc.textContent=CFG.nama;
+    const pg=document.querySelector('.page.active');
+    if(pg&&pg.id==='page-settings') applySettingsUI();
   });
   // CFG gambar
   DB.ref('cfg_img').on('value', snap=>{
@@ -1244,7 +1273,8 @@ function submitIzin(e){
     keterangan: ket,
     file: {name:_izinFile.name, type:_izinFile.type, dataUrl:_izinFile.dataUrl},
     status:'menunggu',
-    catatanAdmin:'',
+    persetuju1Status:'menunggu', catatan1:'', diproses1Pada:null,
+    persetuju2Status:'menunggu', catatan2:'', diproses2Pada:null,
     diajukanPada: Date.now()
   };
   S.izinRequests.push(record);
@@ -1274,7 +1304,8 @@ function kirimWaHrd(){
   const text=`Assalamu'alaikum, saya ingin mengonfirmasi pengajuan izin:\n\n`+
     `Nama: ${r.nama}\nJabatan: ${r.jabatan}\nTanggal Izin: ${tgl}\nKategori: ${r.kategori}\nKeterangan: ${r.keterangan}\n\n`+
     `Mohon konfirmasi & persetujuan dari HRD. Terima kasih.`;
-  const url=`https://wa.me/${HRD_WA_NUMBER}?text=${encodeURIComponent(text)}`;
+  const num=normalizeWaNumber(CFG.waHrd)||HRD_WA_NUMBER_DEFAULT;
+  const url=`https://wa.me/${num}?text=${encodeURIComponent(text)}`;
   window.open(url,'_blank');
 }
 
@@ -1283,10 +1314,20 @@ function izinStatusBadge(status){
   if(status==='ditolak') return '<span class="badge badge-d">❌ Ditolak</span>';
   return '<span class="badge badge-w">⏳ Menunggu</span>';
 }
+function approvalMiniBadge(st){
+  if(st==='diizinkan') return '<span class="badge badge-s" style="font-size:10px">✅ Setuju</span>';
+  if(st==='ditolak') return '<span class="badge badge-d" style="font-size:10px">❌ Tolak</span>';
+  return '<span class="badge badge-w" style="font-size:10px">⏳ Menunggu</span>';
+}
+function computeIzinStatus(r){
+  if(r.persetuju1Status==='ditolak' || r.persetuju2Status==='ditolak') return 'ditolak';
+  if(r.persetuju1Status==='diizinkan' && r.persetuju2Status==='diizinkan') return 'diizinkan';
+  return 'menunggu';
+}
 function izinKatClass(kat){
-  if(kat==='Sakit') return 'izin-cat-sakit';
+  if(kat==='Izin Sakit') return 'izin-cat-sakit';
   if(kat==='Izin Melayat') return 'izin-cat-melayat';
-  if(kat==='Izin Mendampingi Istri Melahirkan') return 'izin-cat-istri';
+  if(kat==='Izin Menemani Keluarga Berobat') return 'izin-cat-istri';
   return 'izin-cat-ortu';
 }
 
@@ -1304,7 +1345,12 @@ function renderMyIzinHistory(){
       </div>
       <div class="izin-card-meta">📅 ${tgl}</div>
       <div class="izin-card-desc">${escapeHtml(r.keterangan)}</div>
-      ${r.catatanAdmin?`<div class="izin-card-desc" style="color:var(--text-muted);font-style:italic">Catatan HRD: ${escapeHtml(r.catatanAdmin)}</div>`:''}
+      <div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap">
+        <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(CFG.approver1||'Penyetuju 1')}: ${approvalMiniBadge(r.persetuju1Status||'menunggu')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${escapeHtml(CFG.approver2||'Penyetuju 2')}: ${approvalMiniBadge(r.persetuju2Status||'menunggu')}</div>
+      </div>
+      ${r.catatan1?`<div class="izin-card-desc" style="color:var(--text-muted);font-style:italic">Catatan ${escapeHtml(CFG.approver1||'Penyetuju 1')}: ${escapeHtml(r.catatan1)}</div>`:''}
+      ${r.catatan2?`<div class="izin-card-desc" style="color:var(--text-muted);font-style:italic">Catatan ${escapeHtml(CFG.approver2||'Penyetuju 2')}: ${escapeHtml(r.catatan2)}</div>`:''}
       ${r.file?`<a class="izin-card-file" href="${r.file.dataUrl}" target="_blank" rel="noopener" download="${escapeHtml(r.file.name)}">📎 Lihat bukti</a>`:''}
     </div>`;
   }).join('');
@@ -1333,7 +1379,7 @@ function renderIzinAdmin(){
 
   if(!rows.length){ list.innerHTML='<div class="izin-empty">Tidak ada data izin yang cocok dengan filter.</div>'; return; }
   list.innerHTML=`<div class="card"><table><thead><tr>
-      <th>Nama / Jabatan</th><th>Tanggal Izin</th><th>Kategori</th><th>Keterangan</th><th>Bukti</th><th>Status</th><th>Aksi</th>
+      <th>Nama / Jabatan</th><th>Tanggal Izin</th><th>Kategori</th><th>Keterangan</th><th>Bukti</th><th>${escapeHtml(CFG.approver1||'Penyetuju 1')}</th><th>${escapeHtml(CFG.approver2||'Penyetuju 2')}</th><th>Status</th><th>Aksi</th>
     </tr></thead><tbody>
     ${rows.map(r=>{
       const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
@@ -1343,6 +1389,8 @@ function renderIzinAdmin(){
         <td><span class="badge ${izinKatClass(r.kategori)}">${r.kategori}</span></td>
         <td style="max-width:220px;font-size:12.5px">${escapeHtml(r.keterangan)}</td>
         <td>${r.file?`<a href="${r.file.dataUrl}" target="_blank" rel="noopener" style="font-size:12px">📎 Lihat</a>`:'-'}</td>
+        <td>${approvalMiniBadge(r.persetuju1Status||'menunggu')}</td>
+        <td>${approvalMiniBadge(r.persetuju2Status||'menunggu')}</td>
         <td>${izinStatusBadge(r.status)}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-sm btn-primary" onclick="openIzinDetail('${r.id}')">🔍 Detail</button>
@@ -1350,6 +1398,23 @@ function renderIzinAdmin(){
       </tr>`;
     }).join('')}
     </tbody></table></div>`;
+}
+
+function approvalBlock(num, r, name){
+  const st=num===1?(r.persetuju1Status||'menunggu'):(r.persetuju2Status||'menunggu');
+  const note=num===1?(r.catatan1||''):(r.catatan2||'');
+  const label=name||('Penyetuju '+num);
+  return `<div class="sal-block" style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:700;font-size:13px">👤 ${escapeHtml(label)}</div>
+      ${approvalMiniBadge(st)}
+    </div>
+    <textarea id="iz-note-${num}" rows="2" placeholder="Catatan (opsional)...">${escapeHtml(note)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-sm btn-danger" style="flex:1;justify-content:center" onclick="setIzinApproval('${r.id}',${num},'ditolak')">❌ Tolak</button>
+      <button class="btn btn-sm btn-success" style="flex:1;justify-content:center" onclick="setIzinApproval('${r.id}',${num},'diizinkan')">✅ Setuju</button>
+    </div>
+  </div>`;
 }
 
 function openIzinDetail(id){
@@ -1366,28 +1431,28 @@ function openIzinDetail(id){
       <div class="fg"><label>Kategori</label><input type="text" value="${r.kategori}" readonly style="background:var(--bg)"></div>
     </div>
     <div class="fg" style="margin-bottom:12px"><label>Keterangan</label><textarea readonly style="background:var(--bg)" rows="3">${escapeHtml(r.keterangan)}</textarea></div>
-    <div class="fg" style="margin-bottom:12px"><label>Bukti Izin / Sakit</label>
+    <div class="fg" style="margin-bottom:14px"><label>Bukti Izin / Sakit</label>
       ${r.file?(r.file.type&&r.file.type.startsWith('image/')?`<img src="${r.file.dataUrl}" style="max-width:100%;border-radius:6px;border:1px solid var(--border)">`:`<a class="btn btn-sm" href="${r.file.dataUrl}" target="_blank" rel="noopener">📎 Buka ${escapeHtml(r.file.name)}</a>`):'<span style="color:var(--text-muted);font-size:12px">Tidak ada file</span>'}
     </div>
-    <div class="fg" style="margin-bottom:6px"><label>Status Saat Ini</label><div style="margin-top:2px">${izinStatusBadge(r.status)}</div></div>
-    <div class="fg"><label>Catatan HRD (opsional)</label><textarea id="iz-admin-note" rows="2" placeholder="Catatan untuk karyawan...">${escapeHtml(r.catatanAdmin||'')}</textarea></div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Diajukan pada: ${diajukan}</div>`;
-  el('mo-izin-foot').innerHTML=`
-    <button class="btn" onclick="closeM('mo-izin')">Tutup</button>
-    <button class="btn btn-danger" onclick="setIzinStatus('${r.id}','ditolak')">❌ Tolak</button>
-    <button class="btn btn-success" onclick="setIzinStatus('${r.id}','diizinkan')">✅ Izinkan</button>`;
+    <div class="fg" style="margin-bottom:10px"><label>Status Keseluruhan</label><div style="margin-top:2px">${izinStatusBadge(r.status)}</div></div>
+    <div class="sdiv">Persetujuan (Wajib Disetujui Keduanya)</div>
+    ${approvalBlock(1,r,CFG.approver1)}
+    ${approvalBlock(2,r,CFG.approver2)}
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Diajukan pada: ${diajukan}</div>`;
+  el('mo-izin-foot').innerHTML=`<button class="btn" onclick="closeM('mo-izin')">Tutup</button>`;
   el('mo-izin').classList.add('open');
 }
 
-function setIzinStatus(id,status){
+function setIzinApproval(id, num, decision){
   const i=S.izinRequests.findIndex(x=>x.id===id); if(i<0) return;
-  S.izinRequests[i].status=status;
-  S.izinRequests[i].catatanAdmin=gv('iz-admin-note')||'';
-  S.izinRequests[i].diprosesPada=Date.now();
+  const r=S.izinRequests[i];
+  if(num===1){ r.persetuju1Status=decision; r.catatan1=gv('iz-note-1')||''; r.diproses1Pada=Date.now(); }
+  else { r.persetuju2Status=decision; r.catatan2=gv('iz-note-2')||''; r.diproses2Pada=Date.now(); }
+  r.status=computeIzinStatus(r);
   saveIzinState().then(()=>{
-    closeM('mo-izin');
     renderIzinAdmin();
-    showSync(status==='diizinkan'?'✅ Izin dikonfirmasi':'✅ Izin ditolak');
+    openIzinDetail(id);
+    showSync(decision==='diizinkan'?'✅ Persetujuan tersimpan':'✅ Penolakan tersimpan');
   });
 }
 
@@ -1402,6 +1467,7 @@ function exportIzinExcel(){
   if(q) rows=rows.filter(r=>(r.nama||'').toLowerCase().includes(q));
   if(!rows.length){ alert('Tidak ada data izin untuk diekspor.'); return; }
   const statusLabel={menunggu:'Menunggu',diizinkan:'Diizinkan',ditolak:'Ditolak'};
+  const ap1Label=CFG.approver1||'Penyetuju 1', ap2Label=CFG.approver2||'Penyetuju 2';
   const data=rows.map((r,i)=>({
     'No': i+1,
     'Nama Karyawan': r.nama,
@@ -1410,12 +1476,15 @@ function exportIzinExcel(){
     'Tanggal Izin': new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}),
     'Kategori Izin': r.kategori,
     'Keterangan': r.keterangan,
-    'Status': statusLabel[r.status]||r.status,
-    'Catatan HRD': r.catatanAdmin||'',
+    [`Persetujuan ${ap1Label}`]: statusLabel[r.persetuju1Status]||'Menunggu',
+    [`Catatan ${ap1Label}`]: r.catatan1||'',
+    [`Persetujuan ${ap2Label}`]: statusLabel[r.persetuju2Status]||'Menunggu',
+    [`Catatan ${ap2Label}`]: r.catatan2||'',
+    'Status Akhir': statusLabel[r.status]||r.status,
     'Diajukan Pada': r.diajukanPada?new Date(r.diajukanPada).toLocaleString('id-ID'):''
   }));
   const ws=XLSX.utils.json_to_sheet(data);
-  ws['!cols']=[{wch:4},{wch:22},{wch:18},{wch:16},{wch:16},{wch:30},{wch:36},{wch:12},{wch:26},{wch:20}];
+  ws['!cols']=[{wch:4},{wch:22},{wch:18},{wch:16},{wch:16},{wch:30},{wch:36},{wch:16},{wch:22},{wch:16},{wch:22},{wch:12},{wch:20}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Rekap Izin');
   const co=(CFG.nama||'Perusahaan').replace(/[^a-zA-Z0-9]/g,'_');
@@ -2156,7 +2225,16 @@ function saveSettings(){
   CFG.nama=gv('set-nama')||'CV. MITRA MULTI TEKNIK';
   CFG.alamat=gv('set-alamat');
   CFG.kontak=gv('set-kontak');
-  saveCFG(); renderSlipPreview(); applyLogoUI();
+  CFG.approver1=gv('set-approver1');
+  CFG.approver2=gv('set-approver2');
+  CFG.waHrd=gv('set-wa-hrd');
+  saveCFG(); renderSlipPreview(); applyLogoUI(); updateWaPreview();
+}
+
+function updateWaPreview(){
+  const p=el('set-wa-preview'); if(!p) return;
+  const norm=normalizeWaNumber(CFG.waHrd)||HRD_WA_NUMBER_DEFAULT;
+  p.textContent='+'+norm;
 }
 
 function applySettingsUI(){
@@ -2164,6 +2242,10 @@ function applySettingsUI(){
   const a=el('set-alamat'); if(a) a.value=CFG.alamat||'';
   const k=el('set-kontak'); if(k) k.value=CFG.kontak||'';
   const h=el('set-hrd-nama'); if(h) h.value=CFG.hrdNama||'';
+  const a1=el('set-approver1'); if(a1) a1.value=CFG.approver1||'';
+  const a2=el('set-approver2'); if(a2) a2.value=CFG.approver2||'';
+  const wa=el('set-wa-hrd'); if(wa) wa.value=CFG.waHrd||'';
+  updateWaPreview();
   if(CFG.logo){ showLogoImg(CFG.logo); } else { const i=el('logo-img'),p=el('logo-ph'); if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex'; }
   if(CFG.ttd){  showTtdImg(CFG.ttd);  } else { const i=el('ttd-img'),p=el('ttd-ph');   if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex'; }
   renderSlipPreview();

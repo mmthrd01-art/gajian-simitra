@@ -207,6 +207,33 @@ tbody tr:hover{background:#FAFCFE}
 
 #app-shell{display:none;width:100%;min-height:100vh}
 
+/* ==================== IZIN KARYAWAN ==================== */
+.izin-tabs{display:flex;gap:8px;margin-bottom:18px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:5px}
+.izin-tab-btn{flex:1;padding:9px 10px;border-radius:7px;border:none;background:none;color:var(--text-muted);font-size:13px;font-weight:700;cursor:pointer;transition:all .13s}
+.izin-tab-btn.active{background:var(--primary);color:#fff}
+.izin-form-card{background:#fff;border-radius:10px;border:1px solid var(--border);padding:18px 20px;margin-bottom:16px}
+.izin-file-drop{border:1.6px dashed var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg);cursor:pointer;font-size:12.5px;color:var(--text-muted);transition:all .13s}
+.izin-file-drop:hover{border-color:var(--primary-light)}
+.izin-file-drop.has-file{border-style:solid;border-color:var(--success);background:#E8F5EE;color:var(--success)}
+.izin-file-drop input{display:none}
+.izin-file-preview img{max-width:100%;max-height:130px;border-radius:6px;margin-top:8px;border:1px solid var(--border)}
+.izin-cat-sakit{background:#FDECEB;color:var(--danger)}
+.izin-cat-melayat{background:#EDEFF2;color:var(--text-muted)}
+.izin-cat-istri{background:#E8F5EE;color:var(--success)}
+.izin-cat-ortu{background:#FEF3DC;color:var(--warning)}
+.izin-card-item{background:#fff;border:1px solid var(--border);border-radius:9px;padding:14px 16px;margin-bottom:10px}
+.izin-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.izin-card-name{font-weight:700;font-size:14px}
+.izin-card-meta{font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.izin-card-desc{font-size:12.5px;margin-top:8px;color:var(--text);line-height:1.5}
+.izin-card-file{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--info);margin-top:8px;text-decoration:none;border-bottom:1px dotted var(--info)}
+.izin-wa-btn{display:inline-flex;align-items:center;gap:7px;padding:11px 16px;border-radius:8px;background:#25D366;color:#fff;border:none;cursor:pointer;font-size:13.5px;font-weight:700;width:100%;justify-content:center;margin-top:10px}
+.izin-wa-btn:hover{background:#1EBE57}
+.izin-wa-btn:disabled{opacity:.5;cursor:not-allowed}
+.izin-empty{text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13px;border:1.4px dashed var(--border);border-radius:8px}
+.izin-success-box{background:#E8F5EE;border:1px solid #B7E4C7;border-radius:9px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--success);display:none}
+.izin-success-box.show{display:block}
+
 /* =============================================
    RESPONSIVE FIXES — MOBILE & TABLET
    ============================================= */
@@ -335,6 +362,7 @@ tbody tr:hover{background:#FAFCFE}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <!-- Firebase SDK (compat mode – bekerja tanpa import/module) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -417,6 +445,10 @@ try{
       <button class="sb-btn" onclick="showPage('gaji-nfc',this)"><span class="sb-icon">💵</span>Gaji Non-Fix Cost</button>
       <button class="sb-btn" onclick="showPage('gaji-fc',this)"><span class="sb-icon">💵</span>Gaji Fix Cost</button>
       <button class="sb-btn" onclick="showPage('gaji-st',this)"><span class="sb-icon">💵</span>Gaji Staff</button>
+    </div>
+    <div class="sb-sec">
+      <div class="sb-sec-title">Izin Karyawan</div>
+      <button class="sb-btn" onclick="showPage('izin-admin',this)"><span class="sb-icon">📝</span>Pengajuan Izin<span id="izin-pending-dot" style="display:none;margin-left:auto;background:var(--danger);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;font-weight:700"></span></button>
     </div>
     <div class="sb-sec">
       <div class="sb-sec-title">Laporan</div>
@@ -559,6 +591,32 @@ try{
       <div id="rek-content"></div>
     </div>
 
+    <!-- PENGAJUAN IZIN (ADMIN) -->
+    <div id="page-izin-admin" class="page">
+      <div class="ph"><h1>Pengajuan Izin Karyawan</h1><p>Data izin dihitung terpisah dari penggajian &mdash; konfirmasi di sini tidak memengaruhi perhitungan gaji</p></div>
+      <div class="stats-grid" id="izin-stats"></div>
+      <div class="rekap-bar">
+        <label>Status:</label>
+        <select id="izin-f-status" onchange="renderIzinAdmin()">
+          <option value="all">Semua Status</option>
+          <option value="menunggu">Menunggu</option>
+          <option value="diizinkan">Diizinkan</option>
+          <option value="ditolak">Ditolak</option>
+        </select>
+        <label>Kategori:</label>
+        <select id="izin-f-kat" onchange="renderIzinAdmin()">
+          <option value="all">Semua Kategori</option>
+          <option value="Sakit">Sakit</option>
+          <option value="Izin Melayat">Izin Melayat</option>
+          <option value="Izin Mendampingi Istri Melahirkan">Izin Mendampingi Istri Melahirkan</option>
+          <option value="Izin Mendampingi Orang Tua">Izin Mendampingi Orang Tua</option>
+        </select>
+        <input type="text" class="search-box" id="izin-f-search" placeholder="🔍 Cari nama karyawan..." oninput="renderIzinAdmin()" style="max-width:220px">
+        <button class="print-btn" onclick="exportIzinExcel()">📊 Export Excel</button>
+      </div>
+      <div id="izin-admin-list"></div>
+    </div>
+
     <!-- KELOLA AKUN -->
     <div id="page-users" class="page">
       <div class="ph"><h1>Kelola Akun Karyawan</h1><p>Atur username &amp; password login untuk setiap karyawan</p></div>
@@ -678,17 +736,29 @@ try{
   </div>
 </div>
 
+<!-- ===== MODAL DETAIL IZIN (ADMIN) ===== -->
+<div class="mo" id="mo-izin">
+  <div class="mbox" style="width:560px">
+    <div class="mhd"><h2>Detail Pengajuan Izin</h2><button class="btn btn-sm" onclick="closeM('mo-izin')">✕</button></div>
+    <div class="mbd" id="mo-izin-body"></div>
+    <div class="mft" id="mo-izin-foot"></div>
+  </div>
+</div>
+
 <script>
 // ==================== CONSTANTS ====================
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const TYPE_LABELS = {nfc:'Tim Ops Non-Fix', fc:'Tim Ops Fix Cost', st:'Staff'};
 const HR_CREDS = {u:'Ghazali', p:'mmt12345'};
+const IZIN_KATEGORI = ['Sakit','Izin Melayat','Izin Mendampingi Istri Melahirkan','Izin Mendampingi Orang Tua'];
+const HRD_WA_NUMBER = '6282259979760';
 
 // ==================== STATE ====================
 let S = {
   employees: {nfc:[], fc:[], st:[]},
   salaries: {},
-  userAccounts: []
+  userAccounts: [],
+  izinRequests: []
 };
 let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:''};
 
@@ -699,6 +769,9 @@ let _loginRole='hr';
 let _portalEmp=null;
 let _statTab='bulanan';
 let _charts={};
+let _epTab='gaji';
+let _izinFile=null; // {name,type,dataUrl}
+let _lastIzinSubmit=null;
 
 // ==================== FIREBASE PERSIST ====================
 // Indikator sinkronisasi
@@ -724,6 +797,14 @@ function saveState(){
     userAccounts: S.userAccounts
   }).then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>showSync('❌ Gagal simpan: '+e.message,false));
+}
+
+// ── Tulis data izin ke node terpisah (izin dihitung terpisah dari gaji)
+function saveIzinState(){
+  if(!_fbReady){console.warn('Firebase belum siap');return;}
+  return DB.ref('izin').set(S.izinRequests)
+    .then(()=>showSync('✅ Tersimpan ke cloud'))
+    .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
 }
 
 // ── Tulis CFG (logo/ttd disimpan terpisah karena besar)
@@ -769,6 +850,7 @@ function attachFirebaseListeners(){
       else if(pid==='gaji-st')  renderGajiTable('st');
       else if(pid==='rekap')    renderRekap();
       else if(pid==='users')    renderUserTable();
+      else if(pid==='izin-admin') renderIzinAdmin();
     }
     ['nfc','fc','st'].forEach(t=>renderEmpTable(t));
     renderDashboard();
@@ -784,6 +866,15 @@ function attachFirebaseListeners(){
     showSync('❌ Firebase error: '+err.message,false);
     console.error('Firebase read error',err);
     setLoginLoading(false,true);
+  });
+  // Data izin (terpisah dari gaji)
+  DB.ref('izin').on('value', snap=>{
+    const d = snap.val();
+    S.izinRequests = Array.isArray(d) ? d.filter(Boolean) : (d ? Object.values(d) : []);
+    updateIzinPendingDot();
+    const activePage = document.querySelector('.page.active');
+    if(activePage && activePage.id==='page-izin-admin') renderIzinAdmin();
+    if(document.getElementById('emp-portal').style.display==='block' && _epTab==='izin') renderIzinEmpPage();
   });
   // CFG teks
   DB.ref('cfg').on('value', snap=>{
@@ -806,6 +897,13 @@ function attachFirebaseListeners(){
     if(pg&&pg.id==='page-settings'){ applySettingsUI(); }
     else { renderSlipPreview(); }
   });
+}
+
+function updateIzinPendingDot(){
+  const dot=el('izin-pending-dot');
+  if(!dot) return;
+  const n=S.izinRequests.filter(r=>r.status==='menunggu').length;
+  if(n>0){ dot.style.display='inline-block'; dot.textContent=n; } else { dot.style.display='none'; }
 }
 
 // ── Login anonim ke Firebase Auth dulu, baru pasang listener database.
@@ -861,6 +959,7 @@ function gv(id){ const e=el(id); return e?e.value:'' }
 function gn(id){ return pn(gv(id)) }
 function setText(id,v){ const e=el(id); if(e) e.textContent=v }
 function closeM(id){ el(id).classList.remove('open') }
+function escapeHtml(str){ if(!str) return ''; return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // ==================== MOBILE SIDEBAR ====================
 function toggleSidebar(){
@@ -897,6 +996,7 @@ function showPage(id, btn){
   else if(id==='gaji-st') renderGajiPage('st');
   else if(id==='rekap') renderRekap();
   else if(id==='users') renderUserTable();
+  else if(id==='izin-admin') renderIzinAdmin();
   else if(id==='settings') setTimeout(()=>applySettingsUI(),30);
   // Auto-close sidebar on mobile after navigation
   if(window.innerWidth<=900) closeSidebar();
@@ -921,6 +1021,7 @@ function doLogin(){
       el('app-shell').style.display='block';
       renderDashboard();
       applyLogoUI();
+      updateIzinPendingDot();
       setTimeout(updateMobHam, 100);
     } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
   } else {
@@ -938,6 +1039,7 @@ function doLogin(){
       _portalEmp={empId:acc.empId, empType:acc.empType};
       el('login-page').style.display='none';
       el('emp-portal').style.display='block';
+      _epTab='gaji';
       renderEmpPortal();
     } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
   }
@@ -993,14 +1095,30 @@ function renderEmpPortal(){
       <div><div class="ep-name">${emp.nama}</div><div class="ep-meta">${emp.jabatan} &bull; NIK: ${emp.nik}</div></div>
       <div class="ep-cat">${TYPE_LABELS[empType]}</div>
     </div>
-    <div class="period-bar">
-      <label>Periode:</label>
-      <select id="ep-mon" onchange="updateEPSalary()">${mSel}</select>
-      <select id="ep-yr" onchange="updateEPSalary()">${ySel}</select>
-      <button class="slip-btn" onclick="openEPSlip()">📄 Lihat Slip Gaji</button>
+    <div class="izin-tabs">
+      <button class="izin-tab-btn ${_epTab==='gaji'?'active':''}" id="ep-tab-gaji" onclick="switchEpTab('gaji')">💰 Gaji Saya</button>
+      <button class="izin-tab-btn ${_epTab==='izin'?'active':''}" id="ep-tab-izin" onclick="switchEpTab('izin')">📝 Ajukan Izin</button>
     </div>
-    <div id="ep-sal"></div>`;
-  updateEPSalary();
+    <div id="ep-tab-content-gaji" style="${_epTab==='gaji'?'':'display:none'}">
+      <div class="period-bar">
+        <label>Periode:</label>
+        <select id="ep-mon" onchange="updateEPSalary()">${mSel}</select>
+        <select id="ep-yr" onchange="updateEPSalary()">${ySel}</select>
+        <button class="slip-btn" onclick="openEPSlip()">📄 Lihat Slip Gaji</button>
+      </div>
+      <div id="ep-sal"></div>
+    </div>
+    <div id="ep-tab-content-izin" style="${_epTab==='izin'?'':'display:none'}"></div>`;
+  if(_epTab==='gaji') updateEPSalary(); else renderIzinEmpPage();
+}
+
+function switchEpTab(tab){
+  _epTab=tab;
+  el('ep-tab-gaji').classList.toggle('active', tab==='gaji');
+  el('ep-tab-izin').classList.toggle('active', tab==='izin');
+  el('ep-tab-content-gaji').style.display = tab==='gaji' ? '' : 'none';
+  el('ep-tab-content-izin').style.display = tab==='izin' ? '' : 'none';
+  if(tab==='gaji') updateEPSalary(); else renderIzinEmpPage();
 }
 
 function updateEPSalary(){
@@ -1055,6 +1173,253 @@ function openEPSlip(){
   const {empId,empType}=_portalEmp;
   const mon=parseInt(gv('ep-mon')), yr=parseInt(gv('ep-yr'));
   openSlip(empType,empId,mon,yr);
+}
+
+// ==================== IZIN — PORTAL KARYAWAN ====================
+function renderIzinEmpPage(){
+  const {empId, empType}=_portalEmp;
+  const emp=S.employees[empType]?.find(e=>e.id===empId);
+  const box=el('ep-tab-content-izin');
+  if(!box) return;
+  const today=new Date().toISOString().split('T')[0];
+  const katOpt=IZIN_KATEGORI.map(k=>`<option value="${k}">${k}</option>`).join('');
+  box.innerHTML=`
+    <div class="izin-success-box" id="izin-success-box"></div>
+    <div class="izin-form-card">
+      <div class="card-title" style="margin-bottom:14px">📝 Formulir Pengajuan Izin</div>
+      <form id="izin-form" onsubmit="return submitIzin(event)">
+        <div class="fg2" style="margin-bottom:12px">
+          <div class="fg"><label>Nama Karyawan</label><input type="text" value="${escapeHtml(emp.nama)}" readonly style="background:var(--bg)"></div>
+          <div class="fg"><label>Jabatan</label><input type="text" value="${escapeHtml(emp.jabatan||'-')}" readonly style="background:var(--bg)"></div>
+        </div>
+        <div class="fg" style="margin-bottom:12px"><label>Tanggal Izin</label><input type="date" id="iz-tanggal" value="${today}" required></div>
+        <div class="fg" style="margin-bottom:12px"><label>Kategori Izin</label>
+          <select id="iz-kategori" required><option value="" disabled selected>Pilih kategori izin</option>${katOpt}</select>
+        </div>
+        <div class="fg" style="margin-bottom:12px"><label>Keterangan Izin / Sakit</label><textarea id="iz-ket" rows="3" placeholder="Jelaskan alasan izin..." required></textarea></div>
+        <div class="fg" style="margin-bottom:6px"><label>Upload Bukti Izin / Sakit</label>
+          <div class="izin-file-drop" id="iz-drop" onclick="document.getElementById('iz-file').click()">
+            <span id="iz-drop-label">Klik untuk pilih file (gambar / PDF, maks. 3 MB)</span>
+            <input type="file" id="iz-file" accept="image/*,application/pdf" onchange="handleIzinFile(event)">
+            <div class="izin-file-preview" id="iz-preview"></div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;padding:11px">Ajukan Izin</button>
+      </form>
+      <button class="izin-wa-btn" id="iz-wa-btn" disabled onclick="kirimWaHrd()">💬 Kirim ke WA HRD untuk Konfirmasi</button>
+    </div>
+    <div class="card-title" style="margin:20px 0 10px">📋 Riwayat Pengajuan Saya</div>
+    <div id="izin-my-history"></div>`;
+  renderMyIzinHistory();
+}
+
+function handleIzinFile(e){
+  const f=e.target.files[0];
+  const drop=el('iz-drop'), label=el('iz-drop-label'), prev=el('iz-preview');
+  if(!f) return;
+  if(f.size>3*1024*1024){ alert('Ukuran file terlalu besar (maks. 3 MB).'); e.target.value=''; _izinFile=null; return; }
+  const reader=new FileReader();
+  reader.onload=(ev)=>{
+    _izinFile={name:f.name,type:f.type,dataUrl:ev.target.result};
+    drop.classList.add('has-file');
+    label.textContent='✓ '+f.name;
+    prev.innerHTML='';
+    if(f.type.startsWith('image/')){ const img=document.createElement('img'); img.src=ev.target.result; prev.appendChild(img); }
+  };
+  reader.readAsDataURL(f);
+}
+
+function submitIzin(e){
+  e.preventDefault();
+  const {empId, empType}=_portalEmp;
+  const emp=S.employees[empType]?.find(x=>x.id===empId);
+  const tanggal=gv('iz-tanggal'), kategori=gv('iz-kategori'), ket=gv('iz-ket').trim();
+  if(!tanggal||!kategori||!ket){ alert('Mohon lengkapi semua data izin.'); return false; }
+  if(!_izinFile){ alert('Mohon unggah bukti izin/sakit.'); return false; }
+  const record={
+    id: uid(),
+    empId, empType,
+    nama: emp.nama, jabatan: emp.jabatan||'-',
+    kategori, tanggal, jabatan_snapshot: emp.jabatan||'-',
+    keterangan: ket,
+    file: {name:_izinFile.name, type:_izinFile.type, dataUrl:_izinFile.dataUrl},
+    status:'menunggu',
+    catatanAdmin:'',
+    diajukanPada: Date.now()
+  };
+  S.izinRequests.push(record);
+  const btn=e.target.querySelector('button[type=submit]');
+  if(btn){ btn.disabled=true; btn.textContent='Mengirim...'; }
+  saveIzinState().then(()=>{
+    _lastIzinSubmit=record;
+    el('izin-success-box').innerHTML='✅ Pengajuan izin berhasil dikirim dan menunggu konfirmasi HRD. Jangan lupa konfirmasi juga via tombol WhatsApp di bawah.';
+    el('izin-success-box').classList.add('show');
+    el('iz-wa-btn').disabled=false;
+    el('izin-form').reset();
+    el('iz-tanggal').value=new Date().toISOString().split('T')[0];
+    _izinFile=null;
+    el('iz-drop').classList.remove('has-file');
+    el('iz-drop-label').textContent='Klik untuk pilih file (gambar / PDF, maks. 3 MB)';
+    el('iz-preview').innerHTML='';
+    renderMyIzinHistory();
+  }).catch(()=>{ alert('Gagal mengirim pengajuan. Periksa koneksi internet dan coba lagi.'); })
+    .finally(()=>{ if(btn){ btn.disabled=false; btn.textContent='Ajukan Izin'; } });
+  return false;
+}
+
+function kirimWaHrd(){
+  const r=_lastIzinSubmit;
+  if(!r) return;
+  const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const text=`Assalamu'alaikum, saya ingin mengonfirmasi pengajuan izin:\n\n`+
+    `Nama: ${r.nama}\nJabatan: ${r.jabatan}\nTanggal Izin: ${tgl}\nKategori: ${r.kategori}\nKeterangan: ${r.keterangan}\n\n`+
+    `Mohon konfirmasi & persetujuan dari HRD. Terima kasih.`;
+  const url=`https://wa.me/${HRD_WA_NUMBER}?text=${encodeURIComponent(text)}`;
+  window.open(url,'_blank');
+}
+
+function izinStatusBadge(status){
+  if(status==='diizinkan') return '<span class="badge badge-s">✅ Diizinkan</span>';
+  if(status==='ditolak') return '<span class="badge badge-d">❌ Ditolak</span>';
+  return '<span class="badge badge-w">⏳ Menunggu</span>';
+}
+function izinKatClass(kat){
+  if(kat==='Sakit') return 'izin-cat-sakit';
+  if(kat==='Izin Melayat') return 'izin-cat-melayat';
+  if(kat==='Izin Mendampingi Istri Melahirkan') return 'izin-cat-istri';
+  return 'izin-cat-ortu';
+}
+
+function renderMyIzinHistory(){
+  const {empId, empType}=_portalEmp;
+  const box=el('izin-my-history'); if(!box) return;
+  const mine=S.izinRequests.filter(r=>r.empId===empId && r.empType===empType).sort((a,b)=>(b.diajukanPada||0)-(a.diajukanPada||0));
+  if(!mine.length){ box.innerHTML='<div class="izin-empty">Anda belum pernah mengajukan izin.</div>'; return; }
+  box.innerHTML=mine.map(r=>{
+    const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+    return `<div class="izin-card-item">
+      <div class="izin-card-top">
+        <div><span class="badge ${izinKatClass(r.kategori)}">${r.kategori}</span></div>
+        ${izinStatusBadge(r.status)}
+      </div>
+      <div class="izin-card-meta">📅 ${tgl}</div>
+      <div class="izin-card-desc">${escapeHtml(r.keterangan)}</div>
+      ${r.catatanAdmin?`<div class="izin-card-desc" style="color:var(--text-muted);font-style:italic">Catatan HRD: ${escapeHtml(r.catatanAdmin)}</div>`:''}
+      ${r.file?`<a class="izin-card-file" href="${r.file.dataUrl}" target="_blank" rel="noopener" download="${escapeHtml(r.file.name)}">📎 Lihat bukti</a>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ==================== IZIN — ADMIN ====================
+function renderIzinAdmin(){
+  const list=el('izin-admin-list'); if(!list) return;
+  const fStatus=gv('izin-f-status')||'all';
+  const fKat=gv('izin-f-kat')||'all';
+  const q=(gv('izin-f-search')||'').trim().toLowerCase();
+  let rows=S.izinRequests.slice().sort((a,b)=>(b.diajukanPada||0)-(a.diajukanPada||0));
+  if(fStatus!=='all') rows=rows.filter(r=>r.status===fStatus);
+  if(fKat!=='all') rows=rows.filter(r=>r.kategori===fKat);
+  if(q) rows=rows.filter(r=>(r.nama||'').toLowerCase().includes(q));
+
+  const totMenunggu=S.izinRequests.filter(r=>r.status==='menunggu').length;
+  const totDiizinkan=S.izinRequests.filter(r=>r.status==='diizinkan').length;
+  const totDitolak=S.izinRequests.filter(r=>r.status==='ditolak').length;
+  el('izin-stats').innerHTML=`
+    <div class="sc i"><div class="sc-label">Total Pengajuan</div><div class="sc-val">${S.izinRequests.length}</div><div class="sc-sub">Seluruh riwayat izin</div></div>
+    <div class="sc a"><div class="sc-label">Menunggu Konfirmasi</div><div class="sc-val">${totMenunggu}</div><div class="sc-sub">Perlu ditinjau HRD</div></div>
+    <div class="sc s"><div class="sc-label">Diizinkan</div><div class="sc-val">${totDiizinkan}</div><div class="sc-sub">Sudah disetujui</div></div>
+    <div class="sc d"><div class="sc-label">Ditolak</div><div class="sc-val">${totDitolak}</div><div class="sc-sub">Tidak disetujui</div></div>`;
+  updateIzinPendingDot();
+
+  if(!rows.length){ list.innerHTML='<div class="izin-empty">Tidak ada data izin yang cocok dengan filter.</div>'; return; }
+  list.innerHTML=`<div class="card"><table><thead><tr>
+      <th>Nama / Jabatan</th><th>Tanggal Izin</th><th>Kategori</th><th>Keterangan</th><th>Bukti</th><th>Status</th><th>Aksi</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>{
+      const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
+      return `<tr>
+        <td><b>${escapeHtml(r.nama)}</b><br><small style="color:var(--text-muted)">${escapeHtml(r.jabatan||'-')} &bull; ${TYPE_LABELS[r.empType]||''}</small></td>
+        <td>${tgl}</td>
+        <td><span class="badge ${izinKatClass(r.kategori)}">${r.kategori}</span></td>
+        <td style="max-width:220px;font-size:12.5px">${escapeHtml(r.keterangan)}</td>
+        <td>${r.file?`<a href="${r.file.dataUrl}" target="_blank" rel="noopener" style="font-size:12px">📎 Lihat</a>`:'-'}</td>
+        <td>${izinStatusBadge(r.status)}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm btn-primary" onclick="openIzinDetail('${r.id}')">🔍 Detail</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table></div>`;
+}
+
+function openIzinDetail(id){
+  const r=S.izinRequests.find(x=>x.id===id); if(!r) return;
+  const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const diajukan=r.diajukanPada?new Date(r.diajukanPada).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
+  el('mo-izin-body').innerHTML=`
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Nama Karyawan</label><input type="text" value="${escapeHtml(r.nama)}" readonly style="background:var(--bg)"></div>
+      <div class="fg"><label>Jabatan</label><input type="text" value="${escapeHtml(r.jabatan||'-')}" readonly style="background:var(--bg)"></div>
+    </div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Tanggal Izin</label><input type="text" value="${tgl}" readonly style="background:var(--bg)"></div>
+      <div class="fg"><label>Kategori</label><input type="text" value="${r.kategori}" readonly style="background:var(--bg)"></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Keterangan</label><textarea readonly style="background:var(--bg)" rows="3">${escapeHtml(r.keterangan)}</textarea></div>
+    <div class="fg" style="margin-bottom:12px"><label>Bukti Izin / Sakit</label>
+      ${r.file?(r.file.type&&r.file.type.startsWith('image/')?`<img src="${r.file.dataUrl}" style="max-width:100%;border-radius:6px;border:1px solid var(--border)">`:`<a class="btn btn-sm" href="${r.file.dataUrl}" target="_blank" rel="noopener">📎 Buka ${escapeHtml(r.file.name)}</a>`):'<span style="color:var(--text-muted);font-size:12px">Tidak ada file</span>'}
+    </div>
+    <div class="fg" style="margin-bottom:6px"><label>Status Saat Ini</label><div style="margin-top:2px">${izinStatusBadge(r.status)}</div></div>
+    <div class="fg"><label>Catatan HRD (opsional)</label><textarea id="iz-admin-note" rows="2" placeholder="Catatan untuk karyawan...">${escapeHtml(r.catatanAdmin||'')}</textarea></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Diajukan pada: ${diajukan}</div>`;
+  el('mo-izin-foot').innerHTML=`
+    <button class="btn" onclick="closeM('mo-izin')">Tutup</button>
+    <button class="btn btn-danger" onclick="setIzinStatus('${r.id}','ditolak')">❌ Tolak</button>
+    <button class="btn btn-success" onclick="setIzinStatus('${r.id}','diizinkan')">✅ Izinkan</button>`;
+  el('mo-izin').classList.add('open');
+}
+
+function setIzinStatus(id,status){
+  const i=S.izinRequests.findIndex(x=>x.id===id); if(i<0) return;
+  S.izinRequests[i].status=status;
+  S.izinRequests[i].catatanAdmin=gv('iz-admin-note')||'';
+  S.izinRequests[i].diprosesPada=Date.now();
+  saveIzinState().then(()=>{
+    closeM('mo-izin');
+    renderIzinAdmin();
+    showSync(status==='diizinkan'?'✅ Izin dikonfirmasi':'✅ Izin ditolak');
+  });
+}
+
+function exportIzinExcel(){
+  if(typeof XLSX==='undefined'){ alert('Modul Excel gagal dimuat. Periksa koneksi internet.'); return; }
+  const fStatus=gv('izin-f-status')||'all';
+  const fKat=gv('izin-f-kat')||'all';
+  const q=(gv('izin-f-search')||'').trim().toLowerCase();
+  let rows=S.izinRequests.slice().sort((a,b)=>(b.diajukanPada||0)-(a.diajukanPada||0));
+  if(fStatus!=='all') rows=rows.filter(r=>r.status===fStatus);
+  if(fKat!=='all') rows=rows.filter(r=>r.kategori===fKat);
+  if(q) rows=rows.filter(r=>(r.nama||'').toLowerCase().includes(q));
+  if(!rows.length){ alert('Tidak ada data izin untuk diekspor.'); return; }
+  const statusLabel={menunggu:'Menunggu',diizinkan:'Diizinkan',ditolak:'Ditolak'};
+  const data=rows.map((r,i)=>({
+    'No': i+1,
+    'Nama Karyawan': r.nama,
+    'Jabatan': r.jabatan||'-',
+    'Kategori': TYPE_LABELS[r.empType]||'',
+    'Tanggal Izin': new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}),
+    'Kategori Izin': r.kategori,
+    'Keterangan': r.keterangan,
+    'Status': statusLabel[r.status]||r.status,
+    'Catatan HRD': r.catatanAdmin||'',
+    'Diajukan Pada': r.diajukanPada?new Date(r.diajukanPada).toLocaleString('id-ID'):''
+  }));
+  const ws=XLSX.utils.json_to_sheet(data);
+  ws['!cols']=[{wch:4},{wch:22},{wch:18},{wch:16},{wch:16},{wch:30},{wch:36},{wch:12},{wch:26},{wch:20}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Rekap Izin');
+  const co=(CFG.nama||'Perusahaan').replace(/[^a-zA-Z0-9]/g,'_');
+  XLSX.writeFile(wb,`Rekap_Izin_${co}_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // ==================== EMPLOYEES ====================

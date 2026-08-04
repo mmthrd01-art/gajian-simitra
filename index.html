@@ -233,6 +233,46 @@ tbody tr:hover{background:#FAFCFE}
 .izin-empty{text-align:center;padding:30px 10px;color:var(--text-muted);font-size:13px;border:1.4px dashed var(--border);border-radius:8px}
 .izin-success-box{background:#E8F5EE;border:1px solid #B7E4C7;border-radius:9px;padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--success);display:none}
 .izin-success-box.show{display:block}
+.izin-tabs.wrap{flex-wrap:wrap}
+.izin-tabs.wrap .izin-tab-btn{flex:1 1 auto;min-width:120px}
+
+/* Status keseluruhan banner (modal detail izin) */
+.status-banner{display:flex;align-items:center;gap:10px;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-weight:700;font-size:14px}
+.status-banner.st-menunggu{background:#FEF3DC;color:var(--warning);border:1px solid #F8DFA0}
+.status-banner.st-diizinkan{background:#E8F5EE;color:var(--success);border:1px solid #B7E4C7}
+.status-banner.st-ditolak{background:#FDECEB;color:var(--danger);border:1px solid #F3BDB6}
+.status-banner .sb-ic{font-size:20px}
+
+/* Kartu persetujuan (dua penyetuju) */
+.approval-card{background:#fff;border:1.4px solid var(--border);border-left-width:5px;border-radius:9px;padding:14px 16px;margin-bottom:12px;transition:border-color .15s}
+.approval-card.ap-menunggu{border-left-color:var(--warning)}
+.approval-card.ap-diizinkan{border-left-color:var(--success)}
+.approval-card.ap-ditolak{border-left-color:var(--danger)}
+.approval-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.approval-who{display:flex;align-items:center;gap:9px}
+.approval-avatar{width:34px;height:34px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.approval-name{font-weight:700;font-size:13.5px;color:var(--text)}
+.approval-card textarea{width:100%;border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:44px}
+.approval-actions{display:flex;gap:8px;margin-top:9px}
+.approval-actions .btn{flex:1;justify-content:center}
+
+/* ==================== HR / BIODATA / TOP SCORE / CUTI / POINT / BPJS ==================== */
+.hr-emp-card{background:#fff;border:1px solid var(--border);border-radius:9px;padding:12px 16px;margin-bottom:9px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hr-emp-photo{width:44px;height:44px;border-radius:50%;background:var(--bg);border:1px solid var(--border);object-fit:cover;flex:none}
+.hr-emp-photo-ph{width:44px;height:44px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;color:var(--text-muted)}
+.hr-emp-info{flex:1;min-width:140px}
+.hr-emp-name{font-weight:700;font-size:14px}
+.hr-emp-meta{font-size:11.5px;color:var(--text-muted);margin-top:1px}
+.hr-photo-upload{width:96px;height:96px;border-radius:50%;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;background:var(--bg);margin:0 auto 10px;position:relative}
+.hr-photo-upload img{width:100%;height:100%;object-fit:cover}
+.hr-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 18px;font-size:12.5px;background:#F8FAFD;border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.hr-info-grid div span:first-child{color:var(--text-muted);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
+.hr-info-grid div span:last-child{font-weight:600}
+.medal-1{color:#C9971A}.medal-2{color:#8A8F98}.medal-3{color:#B5651D}
+.hr-total-bar{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;border-radius:10px;padding:16px 20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.hr-total-bar .lbl{font-size:12px;opacity:.85}
+.hr-total-bar .val{font-size:22px;font-weight:700}
+.bpjs-card-img{max-width:340px;width:100%;border-radius:10px;border:1px solid var(--border);box-shadow:0 4px 14px rgba(0,0,0,.08);display:block;margin:0 auto}
 
 /* =============================================
    RESPONSIVE FIXES — MOBILE & TABLET
@@ -451,6 +491,15 @@ try{
       <button class="sb-btn" onclick="showPage('izin-admin',this)"><span class="sb-icon">📝</span>Pengajuan Izin<span id="izin-pending-dot" style="display:none;margin-left:auto;background:var(--danger);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;font-weight:700"></span></button>
     </div>
     <div class="sb-sec">
+      <div class="sb-sec-title">Data &amp; HR Karyawan</div>
+      <button class="sb-btn" onclick="showPage('hr-profil',this)"><span class="sb-icon">🪪</span>Biodata Karyawan</button>
+      <button class="sb-btn" onclick="showPage('hr-topscore',this)"><span class="sb-icon">🏆</span>Top Score</button>
+      <button class="sb-btn" onclick="showPage('hr-cuti',this)"><span class="sb-icon">🏖️</span>Cuti Karyawan</button>
+      <button class="sb-btn" onclick="showPage('hr-point',this)"><span class="sb-icon">🎯</span>Point Pekerjaan</button>
+      <button class="sb-btn" onclick="showPage('hr-bpjs',this)"><span class="sb-icon">💳</span>Kartu BPJS</button>
+      <button class="sb-btn" onclick="showPage('hr-tambahan',this)"><span class="sb-icon">➕</span>Pendapatan Lainnya</button>
+    </div>
+    <div class="sb-sec">
       <div class="sb-sec-title">Laporan</div>
       <button class="sb-btn" onclick="showPage('rekap',this)"><span class="sb-icon">📋</span>Rekap Harian</button>
     </div>
@@ -617,6 +666,48 @@ try{
       <div id="izin-admin-list"></div>
     </div>
 
+    <!-- BIODATA KARYAWAN -->
+    <div id="page-hr-profil" class="page">
+      <div class="ph"><h1>Biodata Karyawan</h1><p>Data pribadi &amp; keluarga karyawan, ditampilkan di portal karyawan masing-masing</p></div>
+      <div class="toolbar"><input class="search-box" id="hr-profil-search" placeholder="🔍 Cari nama karyawan..." oninput="renderHrProfilTable()"></div>
+      <div id="hr-profil-list"></div>
+    </div>
+
+    <!-- TOP SCORE -->
+    <div id="page-hr-topscore" class="page">
+      <div class="ph"><h1>Top Score Teknisi</h1><p>Peringkat performa terbaik teknisi &mdash; tampil di portal karyawan yang bersangkutan</p></div>
+      <div class="toolbar"><button class="btn btn-primary" onclick="openHrModal('topScore',null)">+ Tambah Top Score</button></div>
+      <div id="hr-topscore-list"></div>
+    </div>
+
+    <!-- CUTI KARYAWAN -->
+    <div id="page-hr-cuti" class="page">
+      <div class="ph"><h1>Cuti Karyawan</h1><p>Kuota cuti per bulan untuk setiap karyawan &mdash; dihitung terpisah dari Pengajuan Izin</p></div>
+      <div class="toolbar"><button class="btn btn-primary" onclick="openHrModal('cuti',null)">+ Tambah Data Cuti</button></div>
+      <div id="hr-cuti-list"></div>
+    </div>
+
+    <!-- POINT PEKERJAAN -->
+    <div id="page-hr-point" class="page">
+      <div class="ph"><h1>Total Point Pekerjaan</h1><p>Akumulasi poin kinerja &amp; nilai rupiah per teknisi</p></div>
+      <div class="toolbar"><button class="btn btn-primary" onclick="openHrModal('point',null)">+ Tambah Point</button></div>
+      <div id="hr-point-list"></div>
+    </div>
+
+    <!-- KARTU BPJS -->
+    <div id="page-hr-bpjs" class="page">
+      <div class="ph"><h1>Kartu BPJS Ketenagakerjaan</h1><p>Unggah gambar kartu BPJS &mdash; otomatis tampil di portal karyawan</p></div>
+      <div class="toolbar"><input class="search-box" id="hr-bpjs-search" placeholder="🔍 Cari nama karyawan..." oninput="renderHrBpjsTable()"></div>
+      <div id="hr-bpjs-list"></div>
+    </div>
+
+    <!-- PENDAPATAN LAINNYA -->
+    <div id="page-hr-tambahan" class="page">
+      <div class="ph"><h1>Pendapatan Lainnya</h1><p>Pendapatan tambahan di luar gaji &amp; lembur, ditampilkan sebagai info ke karyawan</p></div>
+      <div class="toolbar"><button class="btn btn-primary" onclick="openHrModal('tambahan',null)">+ Tambah Pendapatan</button></div>
+      <div id="hr-tambahan-list"></div>
+    </div>
+
     <!-- KELOLA AKUN -->
     <div id="page-users" class="page">
       <div class="ph"><h1>Kelola Akun Karyawan</h1><p>Atur username &amp; password login untuk setiap karyawan</p></div>
@@ -762,6 +853,33 @@ try{
   </div>
 </div>
 
+<!-- ===== MODAL BIODATA KARYAWAN ===== -->
+<div class="mo" id="mo-profil">
+  <div class="mbox" style="width:760px">
+    <div class="mhd"><h2 id="mo-profil-title">Biodata Karyawan</h2><button class="btn btn-sm" onclick="closeM('mo-profil')">✕</button></div>
+    <div class="mbd" id="mo-profil-body"></div>
+    <div class="mft"><button class="btn" onclick="closeM('mo-profil')">Batal</button><button class="btn btn-primary" onclick="saveProfil()">💾 Simpan Biodata</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL GENERIC: TOP SCORE / CUTI / POINT / TAMBAHAN ===== -->
+<div class="mo" id="mo-hr-item">
+  <div class="mbox" style="width:520px">
+    <div class="mhd"><h2 id="mo-hr-item-title">Tambah Data</h2><button class="btn btn-sm" onclick="closeM('mo-hr-item')">✕</button></div>
+    <div class="mbd" id="mo-hr-item-body"></div>
+    <div class="mft"><button class="btn" onclick="closeM('mo-hr-item')">Batal</button><button class="btn btn-primary" onclick="saveHrModal()">💾 Simpan</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL KARTU BPJS ===== -->
+<div class="mo" id="mo-bpjs">
+  <div class="mbox" style="width:460px">
+    <div class="mhd"><h2 id="mo-bpjs-title">Upload Kartu BPJS</h2><button class="btn btn-sm" onclick="closeM('mo-bpjs')">✕</button></div>
+    <div class="mbd" id="mo-bpjs-body"></div>
+    <div class="mft"><button class="btn" onclick="closeM('mo-bpjs')">Batal</button><button class="btn btn-primary" onclick="saveBpjs()">💾 Simpan</button></div>
+  </div>
+</div>
+
 <script>
 // ==================== CONSTANTS ====================
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -769,12 +887,21 @@ const TYPE_LABELS = {nfc:'Tim Ops Non-Fix', fc:'Tim Ops Fix Cost', st:'Staff'};
 const HR_CREDS = {u:'Ghazali', p:'mmt12345'};
 const IZIN_KATEGORI = ['Izin Sakit','Izin Melayat','Izin Menemani Keluarga Berobat','Izin Urgent Lainnya'];
 const HRD_WA_NUMBER_DEFAULT = '6282259979760';
+const STATUS_KELUARGA = ['Hidup','Meninggal'];
+const STATUS_NIKAH = ['Belum Menikah','Sudah Menikah'];
+const SEBAGAI_PENJAMIN = ['Istri','Suami','Ibu','Bapak','Kakak','Adik','Anak','Kakek','Nenek','Tante','Paman','Sepupu'];
 function normalizeWaNumber(v){
   let d=(v||'').replace(/\D/g,'');
   if(!d) return '';
   if(d.startsWith('0')) d='62'+d.slice(1);
   else if(!d.startsWith('62')) d='62'+d;
   return d;
+}
+function empKey(type,id){ return type+'_'+id; }
+function combinedEmpList(){
+  const out=[];
+  ['nfc','fc','st'].forEach(t=>{ (S.employees[t]||[]).forEach(e=>out.push({id:e.id,type:t,nama:e.nama,jabatan:e.jabatan})); });
+  return out;
 }
 
 // ==================== STATE ====================
@@ -785,6 +912,7 @@ let S = {
   izinRequests: []
 };
 let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:''};
+let HR = { profil:{}, topScore:[], cuti:[], point:[], bpjs:{}, tambahan:[] };
 
 let _empType=null, _empId=null;
 let _salType=null, _salEmpId=null, _salMon=null, _salYr=null;
@@ -796,6 +924,9 @@ let _charts={};
 let _epTab='gaji';
 let _izinFile=null; // {name,type,dataUrl}
 let _lastIzinSubmit=null;
+let _profilEmpId=null, _profilEmpType=null, _profilFoto=null;
+let _hrType=null, _hrItemId=null;
+let _bpjsEmpId=null, _bpjsEmpType=null, _bpjsFile=null;
 
 // ==================== FIREBASE PERSIST ====================
 // Indikator sinkronisasi
@@ -827,6 +958,14 @@ function saveState(){
 function saveIzinState(){
   if(!_fbReady){console.warn('Firebase belum siap');return;}
   return DB.ref('izin').set(S.izinRequests)
+    .then(()=>showSync('✅ Tersimpan ke cloud'))
+    .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
+}
+
+// ── Tulis data HR (biodata, top score, cuti, point, bpjs, tambahan) — terpisah dari gaji & izin
+function saveHrData(){
+  if(!_fbReady){console.warn('Firebase belum siap');return Promise.reject('offline');}
+  return DB.ref('hrdata').set(HR)
     .then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
 }
@@ -878,6 +1017,12 @@ function attachFirebaseListeners(){
       else if(pid==='rekap')    renderRekap();
       else if(pid==='users')    renderUserTable();
       else if(pid==='izin-admin') renderIzinAdmin();
+      else if(pid==='hr-profil') renderHrProfilTable();
+      else if(pid==='hr-topscore') renderHrTopScoreTable();
+      else if(pid==='hr-cuti') renderHrCutiTable();
+      else if(pid==='hr-point') renderHrPointTable();
+      else if(pid==='hr-bpjs') renderHrBpjsTable();
+      else if(pid==='hr-tambahan') renderHrTambahanTable();
     }
     ['nfc','fc','st'].forEach(t=>renderEmpTable(t));
     renderDashboard();
@@ -902,6 +1047,32 @@ function attachFirebaseListeners(){
     const activePage = document.querySelector('.page.active');
     if(activePage && activePage.id==='page-izin-admin') renderIzinAdmin();
     if(document.getElementById('emp-portal').style.display==='block' && _epTab==='izin') renderIzinEmpPage();
+  });
+  // Data HR: biodata, top score, cuti, point pekerjaan, kartu BPJS, pendapatan lainnya (terpisah dari gaji & izin)
+  DB.ref('hrdata').on('value', snap=>{
+    const d=snap.val()||{};
+    HR = {
+      profil: d.profil||{},
+      topScore: Array.isArray(d.topScore)?d.topScore.filter(Boolean):(d.topScore?Object.values(d.topScore):[]),
+      cuti: Array.isArray(d.cuti)?d.cuti.filter(Boolean):(d.cuti?Object.values(d.cuti):[]),
+      point: Array.isArray(d.point)?d.point.filter(Boolean):(d.point?Object.values(d.point):[]),
+      bpjs: d.bpjs||{},
+      tambahan: Array.isArray(d.tambahan)?d.tambahan.filter(Boolean):(d.tambahan?Object.values(d.tambahan):[])
+    };
+    const activePage = document.querySelector('.page.active');
+    if(activePage){
+      const pid=activePage.id.replace('page-','');
+      if(pid==='hr-profil') renderHrProfilTable();
+      else if(pid==='hr-topscore') renderHrTopScoreTable();
+      else if(pid==='hr-cuti') renderHrCutiTable();
+      else if(pid==='hr-point') renderHrPointTable();
+      else if(pid==='hr-bpjs') renderHrBpjsTable();
+      else if(pid==='hr-tambahan') renderHrTambahanTable();
+    }
+    if(document.getElementById('emp-portal').style.display==='block'){
+      const t=EP_TABS.find(x=>x.id===_epTab);
+      if(t && t.id!=='gaji' && t.id!=='izin') window[t.fn]();
+    }
   });
   // CFG teks
   DB.ref('cfg').on('value', snap=>{
@@ -1026,6 +1197,12 @@ function showPage(id, btn){
   else if(id==='rekap') renderRekap();
   else if(id==='users') renderUserTable();
   else if(id==='izin-admin') renderIzinAdmin();
+  else if(id==='hr-profil') renderHrProfilTable();
+  else if(id==='hr-topscore') renderHrTopScoreTable();
+  else if(id==='hr-cuti') renderHrCutiTable();
+  else if(id==='hr-point') renderHrPointTable();
+  else if(id==='hr-bpjs') renderHrBpjsTable();
+  else if(id==='hr-tambahan') renderHrTambahanTable();
   else if(id==='settings') setTimeout(()=>applySettingsUI(),30);
   // Auto-close sidebar on mobile after navigation
   if(window.innerWidth<=900) closeSidebar();
@@ -1110,6 +1287,17 @@ function initAuth(){
 }
 
 // ==================== EMPLOYEE PORTAL ====================
+const EP_TABS = [
+  {id:'gaji', label:'💰 Gaji Saya', fn:'updateEPSalary'},
+  {id:'izin', label:'📝 Ajukan Izin', fn:'renderIzinEmpPage'},
+  {id:'profil', label:'🪪 Data Saya', fn:'renderProfilEmpPage'},
+  {id:'topscore', label:'🏆 Top Score', fn:'renderTopScoreEmpPage'},
+  {id:'cuti', label:'🏖️ Cuti', fn:'renderCutiEmpPage'},
+  {id:'point', label:'🎯 Point', fn:'renderPointEmpPage'},
+  {id:'bpjs', label:'💳 BPJS', fn:'renderBpjsEmpPage'},
+  {id:'tambahan', label:'➕ Lainnya', fn:'renderTambahanEmpPage'}
+];
+
 function renderEmpPortal(){
   const {empId, empType}=_portalEmp;
   const emp=S.employees[empType]?.find(e=>e.id===empId);
@@ -1118,17 +1306,9 @@ function renderEmpPortal(){
   const now=new Date();
   const mSel=MONTHS.map((m,i)=>`<option value="${i}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');
   const ySel=[2023,2024,2025,2026].map(y=>`<option value="${y}" ${y===now.getFullYear()?'selected':''}>${y}</option>`).join('');
-  el('ep-content').innerHTML=`
-    <div class="ep-header">
-      <div class="ep-avatar">👤</div>
-      <div><div class="ep-name">${emp.nama}</div><div class="ep-meta">${emp.jabatan} &bull; NIK: ${emp.nik}</div></div>
-      <div class="ep-cat">${TYPE_LABELS[empType]}</div>
-    </div>
-    <div class="izin-tabs">
-      <button class="izin-tab-btn ${_epTab==='gaji'?'active':''}" id="ep-tab-gaji" onclick="switchEpTab('gaji')">💰 Gaji Saya</button>
-      <button class="izin-tab-btn ${_epTab==='izin'?'active':''}" id="ep-tab-izin" onclick="switchEpTab('izin')">📝 Ajukan Izin</button>
-    </div>
-    <div id="ep-tab-content-gaji" style="${_epTab==='gaji'?'':'display:none'}">
+  const tabBtns=EP_TABS.map(t=>`<button class="izin-tab-btn ${_epTab===t.id?'active':''}" id="ep-tab-${t.id}" onclick="switchEpTab('${t.id}')">${t.label}</button>`).join('');
+  const tabPanels=EP_TABS.map(t=>{
+    if(t.id==='gaji') return `<div id="ep-tab-content-gaji" style="${_epTab==='gaji'?'':'display:none'}">
       <div class="period-bar">
         <label>Periode:</label>
         <select id="ep-mon" onchange="updateEPSalary()">${mSel}</select>
@@ -1136,18 +1316,27 @@ function renderEmpPortal(){
         <button class="slip-btn" onclick="openEPSlip()">📄 Lihat Slip Gaji</button>
       </div>
       <div id="ep-sal"></div>
+    </div>`;
+    return `<div id="ep-tab-content-${t.id}" style="${_epTab===t.id?'':'display:none'}"></div>`;
+  }).join('');
+  el('ep-content').innerHTML=`
+    <div class="ep-header">
+      <div class="ep-avatar">👤</div>
+      <div><div class="ep-name">${emp.nama}</div><div class="ep-meta">${emp.jabatan} &bull; NIK: ${emp.nik}</div></div>
+      <div class="ep-cat">${TYPE_LABELS[empType]}</div>
     </div>
-    <div id="ep-tab-content-izin" style="${_epTab==='izin'?'':'display:none'}"></div>`;
-  if(_epTab==='gaji') updateEPSalary(); else renderIzinEmpPage();
+    <div class="izin-tabs wrap">${tabBtns}</div>
+    ${tabPanels}`;
+  window[EP_TABS.find(t=>t.id===_epTab).fn]();
 }
 
 function switchEpTab(tab){
   _epTab=tab;
-  el('ep-tab-gaji').classList.toggle('active', tab==='gaji');
-  el('ep-tab-izin').classList.toggle('active', tab==='izin');
-  el('ep-tab-content-gaji').style.display = tab==='gaji' ? '' : 'none';
-  el('ep-tab-content-izin').style.display = tab==='izin' ? '' : 'none';
-  if(tab==='gaji') updateEPSalary(); else renderIzinEmpPage();
+  EP_TABS.forEach(t=>{
+    const btn=el('ep-tab-'+t.id); if(btn) btn.classList.toggle('active', tab===t.id);
+    const panel=el('ep-tab-content-'+t.id); if(panel) panel.style.display = tab===t.id ? '' : 'none';
+  });
+  window[EP_TABS.find(t=>t.id===tab).fn]();
 }
 
 function updateEPSalary(){
@@ -1404,17 +1593,30 @@ function approvalBlock(num, r, name){
   const st=num===1?(r.persetuju1Status||'menunggu'):(r.persetuju2Status||'menunggu');
   const note=num===1?(r.catatan1||''):(r.catatan2||'');
   const label=name||('Penyetuju '+num);
-  return `<div class="sal-block" style="margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-weight:700;font-size:13px">👤 ${escapeHtml(label)}</div>
+  return `<div class="approval-card ap-${st}">
+    <div class="approval-head">
+      <div class="approval-who">
+        <div class="approval-avatar">👤</div>
+        <div class="approval-name">${escapeHtml(label)}</div>
+      </div>
       ${approvalMiniBadge(st)}
     </div>
-    <textarea id="iz-note-${num}" rows="2" placeholder="Catatan (opsional)...">${escapeHtml(note)}</textarea>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn btn-sm btn-danger" style="flex:1;justify-content:center" onclick="setIzinApproval('${r.id}',${num},'ditolak')">❌ Tolak</button>
-      <button class="btn btn-sm btn-success" style="flex:1;justify-content:center" onclick="setIzinApproval('${r.id}',${num},'diizinkan')">✅ Setuju</button>
+    <textarea id="iz-note-${num}" placeholder="Catatan (opsional)...">${escapeHtml(note)}</textarea>
+    <div class="approval-actions">
+      <button class="btn btn-sm btn-danger" onclick="setIzinApproval('${r.id}',${num},'ditolak')">❌ Tolak</button>
+      <button class="btn btn-sm btn-success" onclick="setIzinApproval('${r.id}',${num},'diizinkan')">✅ Setuju</button>
     </div>
   </div>`;
+}
+
+function statusBanner(status){
+  const map={
+    menunggu:{ic:'⏳',txt:'Menunggu Persetujuan'},
+    diizinkan:{ic:'✅',txt:'Izin Diizinkan'},
+    ditolak:{ic:'❌',txt:'Izin Ditolak'}
+  };
+  const m=map[status]||map.menunggu;
+  return `<div class="status-banner st-${status}"><span class="sb-ic">${m.ic}</span><span>${m.txt}</span></div>`;
 }
 
 function openIzinDetail(id){
@@ -1422,6 +1624,7 @@ function openIzinDetail(id){
   const tgl=new Date(r.tanggal+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   const diajukan=r.diajukanPada?new Date(r.diajukanPada).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'-';
   el('mo-izin-body').innerHTML=`
+    ${statusBanner(r.status)}
     <div class="fg2" style="margin-bottom:12px">
       <div class="fg"><label>Nama Karyawan</label><input type="text" value="${escapeHtml(r.nama)}" readonly style="background:var(--bg)"></div>
       <div class="fg"><label>Jabatan</label><input type="text" value="${escapeHtml(r.jabatan||'-')}" readonly style="background:var(--bg)"></div>
@@ -1431,14 +1634,13 @@ function openIzinDetail(id){
       <div class="fg"><label>Kategori</label><input type="text" value="${r.kategori}" readonly style="background:var(--bg)"></div>
     </div>
     <div class="fg" style="margin-bottom:12px"><label>Keterangan</label><textarea readonly style="background:var(--bg)" rows="3">${escapeHtml(r.keterangan)}</textarea></div>
-    <div class="fg" style="margin-bottom:14px"><label>Bukti Izin / Sakit</label>
-      ${r.file?(r.file.type&&r.file.type.startsWith('image/')?`<img src="${r.file.dataUrl}" style="max-width:100%;border-radius:6px;border:1px solid var(--border)">`:`<a class="btn btn-sm" href="${r.file.dataUrl}" target="_blank" rel="noopener">📎 Buka ${escapeHtml(r.file.name)}</a>`):'<span style="color:var(--text-muted);font-size:12px">Tidak ada file</span>'}
+    <div class="fg" style="margin-bottom:16px"><label>Bukti Izin / Sakit</label>
+      ${r.file?(r.file.type&&r.file.type.startsWith('image/')?`<img src="${r.file.dataUrl}" style="max-width:100%;border-radius:6px;border:1px solid var(--border);margin-top:4px">`:`<a class="btn btn-sm" href="${r.file.dataUrl}" target="_blank" rel="noopener" style="margin-top:4px">📎 Buka ${escapeHtml(r.file.name)}</a>`):'<span style="color:var(--text-muted);font-size:12px">Tidak ada file</span>'}
     </div>
-    <div class="fg" style="margin-bottom:10px"><label>Status Keseluruhan</label><div style="margin-top:2px">${izinStatusBadge(r.status)}</div></div>
-    <div class="sdiv">Persetujuan (Wajib Disetujui Keduanya)</div>
+    <div class="sdiv" style="margin-top:0">Persetujuan (Wajib Disetujui Keduanya)</div>
     ${approvalBlock(1,r,CFG.approver1)}
     ${approvalBlock(2,r,CFG.approver2)}
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Diajukan pada: ${diajukan}</div>`;
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Diajukan pada: ${diajukan}</div>`;
   el('mo-izin-foot').innerHTML=`<button class="btn" onclick="closeM('mo-izin')">Tutup</button>`;
   el('mo-izin').classList.add('open');
 }
@@ -1489,6 +1691,457 @@ function exportIzinExcel(){
   XLSX.utils.book_append_sheet(wb,ws,'Rekap Izin');
   const co=(CFG.nama||'Perusahaan').replace(/[^a-zA-Z0-9]/g,'_');
   XLSX.writeFile(wb,`Rekap_Izin_${co}_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// ==================== HR: BIODATA KARYAWAN ====================
+function empSelectOptions(selId,selType){
+  const list=combinedEmpList();
+  return '<option value="">-- Pilih Karyawan --</option>'+list.map(e=>
+    `<option value="${e.id}|${e.type}" ${(e.id===selId&&e.type===selType)?'selected':''}>${escapeHtml(e.nama)} (${escapeHtml(e.jabatan||'-')} – ${TYPE_LABELS[e.type]})</option>`
+  ).join('');
+}
+
+function renderHrProfilTable(){
+  const box=el('hr-profil-list'); if(!box) return;
+  const q=(gv('hr-profil-search')||'').trim().toLowerCase();
+  let list=combinedEmpList();
+  if(q) list=list.filter(e=>(e.nama||'').toLowerCase().includes(q));
+  if(!list.length){ box.innerHTML='<div class="izin-empty">Belum ada data karyawan. Tambahkan karyawan terlebih dahulu di menu Data Karyawan.</div>'; return; }
+  box.innerHTML=list.map(e=>{
+    const key=empKey(e.type,e.id);
+    const p=HR.profil[key];
+    const foto=p&&p.foto?`<img class="hr-emp-photo" src="${p.foto}">`:'<div class="hr-emp-photo-ph">👤</div>';
+    return `<div class="hr-emp-card">
+      ${foto}
+      <div class="hr-emp-info">
+        <div class="hr-emp-name">${escapeHtml(e.nama)}</div>
+        <div class="hr-emp-meta">${escapeHtml(e.jabatan||'-')} &bull; ${TYPE_LABELS[e.type]}</div>
+      </div>
+      ${p?'<span class="badge badge-s">✓ Sudah Diisi</span>':'<span class="badge badge-w">Belum Diisi</span>'}
+      <button class="btn btn-sm btn-primary" onclick="openProfilModal('${e.id}','${e.type}')">${p?'✏️ Edit Biodata':'➕ Isi Biodata'}</button>
+    </div>`;
+  }).join('');
+}
+
+function openProfilModal(empId,empType){
+  _profilEmpId=empId; _profilEmpType=empType;
+  const key=empKey(empType,empId);
+  const emp=S.employees[empType]?.find(e=>e.id===empId);
+  const p=HR.profil[key]||{};
+  _profilFoto=p.foto||null;
+  el('mo-profil-title').textContent='Biodata — '+(emp?emp.nama:'');
+  const anakInputs=Array.from({length:10}).map((_,i)=>{
+    const n=i+1;
+    return `<div class="fg"><label>Anak ${n}</label><input type="text" id="pf-anak-${n}" value="${escapeHtml((p.anak&&p.anak[i])||'')}"></div>`;
+  }).join('');
+  el('mo-profil-body').innerHTML=`
+    <div class="hr-photo-upload" id="pf-photo-wrap" onclick="document.getElementById('pf-photo-file').click()">
+      ${_profilFoto?`<img id="pf-photo-img" src="${_profilFoto}">`:'<span id="pf-photo-ph" style="font-size:26px;color:var(--text-muted)">📷</span>'}
+      <input type="file" id="pf-photo-file" accept="image/*" style="display:none" onchange="handleProfilFoto(event)">
+    </div>
+    <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:16px">Klik foto untuk unggah/ganti (maks. 2 MB)</div>
+    <div class="sdiv" style="margin-top:0">Data Pribadi</div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Nama Lengkap</label><input type="text" id="pf-nama-lengkap" value="${escapeHtml(p.namaLengkap||emp?.nama||'')}"></div>
+      <div class="fg"><label>Nama Panggilan</label><input type="text" id="pf-nama-panggil" value="${escapeHtml(p.namaPanggil||'')}"></div>
+    </div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Jabatan</label><input type="text" id="pf-jabatan" value="${escapeHtml(p.jabatan||emp?.jabatan||'')}"></div>
+      <div class="fg"><label>NIK KTP</label><input type="text" id="pf-nik" value="${escapeHtml(p.nik||'')}"></div>
+    </div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Tempat Lahir</label><input type="text" id="pf-tempat-lahir" value="${escapeHtml(p.tempatLahir||'')}"></div>
+      <div class="fg"><label>Tanggal Lahir</label><input type="date" id="pf-tgl-lahir" value="${p.tglLahir||''}"></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Alamat Lengkap</label><textarea id="pf-alamat" rows="2">${escapeHtml(p.alamat||'')}</textarea></div>
+    <div class="fg3" style="margin-bottom:12px">
+      <div class="fg"><label>Status Pernikahan</label><select id="pf-status-nikah">${STATUS_NIKAH.map(s=>`<option ${p.statusNikah===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="fg"><label>No. HP</label><input type="text" id="pf-nohp" value="${escapeHtml(p.noHp||'')}"></div>
+      <div class="fg"><label>Email</label><input type="email" id="pf-email" value="${escapeHtml(p.email||'')}"></div>
+    </div>
+    <div class="fg" style="margin-bottom:6px"><label>Tanggal Mulai Bekerja</label><input type="date" id="pf-mulai-kerja" value="${p.mulaiKerja||''}"></div>
+
+    <div class="sdiv">Data Keluarga</div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Nama Ayah</label><input type="text" id="pf-ayah-nama" value="${escapeHtml((p.ayah&&p.ayah.nama)||'')}"></div>
+      <div class="fg"><label>Status Ayah</label><select id="pf-ayah-status">${STATUS_KELUARGA.map(s=>`<option ${(p.ayah&&p.ayah.status)===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Nama Ibu</label><input type="text" id="pf-ibu-nama" value="${escapeHtml((p.ibu&&p.ibu.nama)||'')}"></div>
+      <div class="fg"><label>Status Ibu</label><select id="pf-ibu-status">${STATUS_KELUARGA.map(s=>`<option ${(p.ibu&&p.ibu.status)===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Nama Istri / Suami</label><input type="text" id="pf-pasangan" value="${escapeHtml(p.pasangan||'')}"></div>
+    <div class="sdiv" style="font-size:11px">Nama Anak (1–10, kosongkan bila tidak ada)</div>
+    <div class="fg3" style="margin-bottom:6px">${anakInputs}</div>
+    <div class="sdiv">Kontak Darurat / Penjamin</div>
+    <div class="fg2">
+      <div class="fg"><label>No. HP Penjamin</label><input type="text" id="pf-penjamin-hp" value="${escapeHtml(p.penjaminHp||'')}"></div>
+      <div class="fg"><label>Sebagai</label><select id="pf-penjamin-sebagai">${SEBAGAI_PENJAMIN.map(s=>`<option ${p.penjaminSebagai===s?'selected':''}>${s}</option>`).join('')}</select></div>
+    </div>`;
+  el('mo-profil').classList.add('open');
+}
+
+function handleProfilFoto(e){
+  const f=e.target.files[0]; if(!f) return;
+  if(f.size>2*1024*1024){ alert('Ukuran foto maks. 2 MB.'); e.target.value=''; return; }
+  const r=new FileReader();
+  r.onload=ev=>{
+    _profilFoto=ev.target.result;
+    el('pf-photo-wrap').innerHTML=`<img id="pf-photo-img" src="${_profilFoto}"><input type="file" id="pf-photo-file" accept="image/*" style="display:none" onchange="handleProfilFoto(event)">`;
+  };
+  r.readAsDataURL(f);
+}
+
+function saveProfil(){
+  const key=empKey(_profilEmpType,_profilEmpId);
+  const anak=[];
+  for(let i=1;i<=10;i++){ const v=gv('pf-anak-'+i).trim(); if(v) anak.push(v); }
+  HR.profil[key]={
+    foto:_profilFoto||null,
+    namaLengkap:gv('pf-nama-lengkap').trim(),
+    namaPanggil:gv('pf-nama-panggil').trim(),
+    jabatan:gv('pf-jabatan').trim(),
+    nik:gv('pf-nik').trim(),
+    tempatLahir:gv('pf-tempat-lahir').trim(),
+    tglLahir:gv('pf-tgl-lahir'),
+    alamat:gv('pf-alamat').trim(),
+    statusNikah:gv('pf-status-nikah'),
+    noHp:gv('pf-nohp').trim(),
+    email:gv('pf-email').trim(),
+    mulaiKerja:gv('pf-mulai-kerja'),
+    ayah:{nama:gv('pf-ayah-nama').trim(),status:gv('pf-ayah-status')},
+    ibu:{nama:gv('pf-ibu-nama').trim(),status:gv('pf-ibu-status')},
+    pasangan:gv('pf-pasangan').trim(),
+    anak,
+    penjaminHp:gv('pf-penjamin-hp').trim(),
+    penjaminSebagai:gv('pf-penjamin-sebagai')
+  };
+  saveHrData().then(()=>{
+    closeM('mo-profil'); renderHrProfilTable();
+    showSync('✅ Biodata tersimpan');
+  }).catch(()=>{ alert('Gagal menyimpan. Periksa koneksi internet.'); });
+}
+
+// ==================== HR: GENERIC (TOP SCORE / CUTI / POINT / TAMBAHAN) ====================
+const HR_TYPE_META={
+  topScore:{title:'Top Score', node:'topScore'},
+  cuti:{title:'Data Cuti', node:'cuti'},
+  point:{title:'Point Pekerjaan', node:'point'},
+  tambahan:{title:'Pendapatan Lainnya', node:'tambahan'}
+};
+
+function hrExtraFieldsHtml(type, item){
+  item=item||{};
+  if(type==='topScore'){
+    return `<div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Top Score</label><select id="hi-posisi">
+        <option value="1" ${item.posisi==1?'selected':''}>🥇 Top Score 1</option>
+        <option value="2" ${item.posisi==2?'selected':''}>🥈 Top Score 2</option>
+        <option value="3" ${item.posisi==3?'selected':''}>🥉 Top Score 3</option>
+      </select></div>
+      <div class="fg"><label>Nilai Yang Diterima (Rp)</label><input type="number" id="hi-nilai" value="${item.nilai||0}" min="0"></div>
+    </div>`;
+  }
+  if(type==='cuti'){
+    return `<div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Bulan Cuti</label><select id="hi-bulan">${MONTHS.map((m,i)=>`<option value="${i}" ${item.bulan==i?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div class="fg"><label>Kuota Cuti (1–30 hari)</label><input type="number" id="hi-quota" value="${item.quota||1}" min="1" max="30"></div>
+    </div>`;
+  }
+  if(type==='point'){
+    return `<div class="fg2" style="margin-bottom:12px">
+      <div class="fg"><label>Jumlah Point</label><input type="number" id="hi-point" value="${item.jumlahPoint||0}" min="0"></div>
+      <div class="fg"><label>Nilai Rupiah (Rp)</label><input type="number" id="hi-nilai-rp" value="${item.nilaiRupiah||0}" min="0"></div>
+    </div>`;
+  }
+  // tambahan
+  return `<div class="fg2" style="margin-bottom:12px">
+    <div class="fg"><label>Pendapatan Lainnya (Rp)</label><input type="number" id="hi-pendapatan" value="${item.pendapatan||0}" min="0"></div>
+    <div class="fg"><label>Keterangan Pendapatan</label><input type="text" id="hi-ket" value="${escapeHtml(item.keterangan||'')}"></div>
+  </div>`;
+}
+
+function fillJabatanFromEmpSelect(){
+  const sel=gv('hi-empsel'); if(!sel) return;
+  const [id,type]=sel.split('|');
+  const emp=S.employees[type]?.find(e=>e.id===id);
+  if(emp) el('hi-jabatan').value=emp.jabatan||'';
+}
+
+function openHrModal(type,id){
+  _hrType=type; _hrItemId=id;
+  const item=id?HR[type].find(x=>x.id===id):null;
+  el('mo-hr-item-title').textContent=(item?'Edit ':'Tambah ')+HR_TYPE_META[type].title;
+  el('mo-hr-item-body').innerHTML=`
+    <div class="fg" style="margin-bottom:12px"><label>Nama Teknisi</label>
+      <select id="hi-empsel" onchange="fillJabatanFromEmpSelect()">${empSelectOptions(item?item.empId:null,item?item.empType:null)}</select>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Jabatan</label><input type="text" id="hi-jabatan" value="${escapeHtml(item?item.jabatan:'')}"></div>
+    ${hrExtraFieldsHtml(type,item)}`;
+  el('mo-hr-item').classList.add('open');
+}
+
+function saveHrModal(){
+  const type=_hrType;
+  const sel=gv('hi-empsel');
+  if(!sel){ alert('Harap pilih karyawan terlebih dahulu.'); return; }
+  const [empId,empType]=sel.split('|');
+  const emp=S.employees[empType]?.find(e=>e.id===empId);
+  const jabatan=gv('hi-jabatan').trim()||emp?.jabatan||'';
+  let extra={};
+  if(type==='topScore') extra={posisi:parseInt(gv('hi-posisi'))||1, nilai:gn('hi-nilai')};
+  else if(type==='cuti') extra={bulan:parseInt(gv('hi-bulan'))||0, quota:Math.max(1,Math.min(30,parseInt(gv('hi-quota'))||1))};
+  else if(type==='point') extra={jumlahPoint:gn('hi-point'), nilaiRupiah:gn('hi-nilai-rp')};
+  else if(type==='tambahan') extra={pendapatan:gn('hi-pendapatan'), keterangan:gv('hi-ket').trim()};
+
+  if(_hrItemId){
+    const i=HR[type].findIndex(x=>x.id===_hrItemId);
+    if(i>-1) HR[type][i]={...HR[type][i], empId,empType,nama:emp?.nama||'',jabatan,...extra};
+  } else {
+    HR[type].push({id:uid(), empId,empType,nama:emp?.nama||'',jabatan,...extra});
+  }
+  saveHrData().then(()=>{
+    closeM('mo-hr-item');
+    if(type==='topScore') renderHrTopScoreTable();
+    else if(type==='cuti') renderHrCutiTable();
+    else if(type==='point') renderHrPointTable();
+    else if(type==='tambahan') renderHrTambahanTable();
+    showSync('✅ Data tersimpan');
+  }).catch(()=>{ alert('Gagal menyimpan. Periksa koneksi internet.'); });
+}
+
+function delHrItem(type,id){
+  if(!confirm('Hapus data ini?')) return;
+  HR[type]=HR[type].filter(x=>x.id!==id);
+  saveHrData().then(()=>{
+    if(type==='topScore') renderHrTopScoreTable();
+    else if(type==='cuti') renderHrCutiTable();
+    else if(type==='point') renderHrPointTable();
+    else if(type==='tambahan') renderHrTambahanTable();
+  });
+}
+
+function renderHrTopScoreTable(){
+  const box=el('hr-topscore-list'); if(!box) return;
+  const rows=HR.topScore.slice().sort((a,b)=>(a.posisi||9)-(b.posisi||9));
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data Top Score.</div>'; return; }
+  const medal={1:'🥇',2:'🥈',3:'🥉'};
+  box.innerHTML=`<div class="card"><table><thead><tr><th>Peringkat</th><th>Nama Teknisi</th><th>Jabatan</th><th>Nilai Diterima</th><th>Aksi</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td class="medal-${r.posisi}" style="font-weight:700">${medal[r.posisi]||''} Top Score ${r.posisi}</td>
+      <td><b>${escapeHtml(r.nama)}</b></td>
+      <td>${escapeHtml(r.jabatan||'-')}</td>
+      <td style="font-weight:700;color:var(--primary)">${rp(r.nilai)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openHrModal('topScore','${r.id}')">✏️</button> <button class="btn btn-sm btn-danger" onclick="delHrItem('topScore','${r.id}')">🗑️</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function renderHrCutiTable(){
+  const box=el('hr-cuti-list'); if(!box) return;
+  const rows=HR.cuti.slice().sort((a,b)=>(a.bulan||0)-(b.bulan||0));
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data cuti.</div>'; return; }
+  box.innerHTML=`<div class="card"><table><thead><tr><th>Nama Teknisi</th><th>Jabatan</th><th>Bulan Cuti</th><th>Kuota</th><th>Aksi</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><b>${escapeHtml(r.nama)}</b></td>
+      <td>${escapeHtml(r.jabatan||'-')}</td>
+      <td>${MONTHS[r.bulan]||'-'}</td>
+      <td style="font-weight:700;color:var(--primary)">${r.quota} hari</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openHrModal('cuti','${r.id}')">✏️</button> <button class="btn btn-sm btn-danger" onclick="delHrItem('cuti','${r.id}')">🗑️</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function renderHrPointTable(){
+  const box=el('hr-point-list'); if(!box) return;
+  const rows=HR.point;
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data point pekerjaan.</div>'; return; }
+  box.innerHTML=`<div class="card"><table><thead><tr><th>Nama Teknisi</th><th>Jabatan</th><th>Jumlah Point</th><th>Nilai Rupiah</th><th>Aksi</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><b>${escapeHtml(r.nama)}</b></td>
+      <td>${escapeHtml(r.jabatan||'-')}</td>
+      <td style="font-weight:700">${r.jumlahPoint||0} pt</td>
+      <td style="font-weight:700;color:var(--primary)">${rp(r.nilaiRupiah)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openHrModal('point','${r.id}')">✏️</button> <button class="btn btn-sm btn-danger" onclick="delHrItem('point','${r.id}')">🗑️</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+function renderHrTambahanTable(){
+  const box=el('hr-tambahan-list'); if(!box) return;
+  const rows=HR.tambahan;
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data pendapatan lainnya.</div>'; return; }
+  box.innerHTML=`<div class="card"><table><thead><tr><th>Nama Teknisi</th><th>Jabatan</th><th>Pendapatan</th><th>Keterangan</th><th>Aksi</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><b>${escapeHtml(r.nama)}</b></td>
+      <td>${escapeHtml(r.jabatan||'-')}</td>
+      <td style="font-weight:700;color:var(--primary)">${rp(r.pendapatan)}</td>
+      <td style="font-size:12.5px">${escapeHtml(r.keterangan||'-')}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openHrModal('tambahan','${r.id}')">✏️</button> <button class="btn btn-sm btn-danger" onclick="delHrItem('tambahan','${r.id}')">🗑️</button></td>
+    </tr>`).join('')}
+  </tbody></table></div>`;
+}
+
+// ==================== HR: KARTU BPJS ====================
+function renderHrBpjsTable(){
+  const box=el('hr-bpjs-list'); if(!box) return;
+  const q=(gv('hr-bpjs-search')||'').trim().toLowerCase();
+  let list=combinedEmpList();
+  if(q) list=list.filter(e=>(e.nama||'').toLowerCase().includes(q));
+  if(!list.length){ box.innerHTML='<div class="izin-empty">Belum ada data karyawan.</div>'; return; }
+  box.innerHTML=list.map(e=>{
+    const key=empKey(e.type,e.id);
+    const has=!!HR.bpjs[key];
+    return `<div class="hr-emp-card">
+      <div class="hr-emp-photo-ph">💳</div>
+      <div class="hr-emp-info">
+        <div class="hr-emp-name">${escapeHtml(e.nama)}</div>
+        <div class="hr-emp-meta">${escapeHtml(e.jabatan||'-')} &bull; ${TYPE_LABELS[e.type]}</div>
+      </div>
+      ${has?'<span class="badge badge-s">✓ Kartu Ada</span>':'<span class="badge badge-w">Belum Ada</span>'}
+      <button class="btn btn-sm btn-primary" onclick="openBpjsModal('${e.id}','${e.type}')">${has?'🔄 Ganti':'📤 Upload'}</button>
+      ${has?`<button class="btn btn-sm btn-danger" onclick="clearBpjsCard('${e.id}','${e.type}')">🗑️</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+function openBpjsModal(empId,empType){
+  _bpjsEmpId=empId; _bpjsEmpType=empType; _bpjsFile=null;
+  const key=empKey(empType,empId);
+  const emp=S.employees[empType]?.find(e=>e.id===empId);
+  const existing=HR.bpjs[key];
+  el('mo-bpjs-title').textContent='Kartu BPJS — '+(emp?emp.nama:'');
+  el('mo-bpjs-body').innerHTML=`
+    ${existing?`<img src="${existing}" class="bpjs-card-img" style="margin-bottom:14px">`:''}
+    <div class="izin-file-drop" id="bpjs-drop" onclick="document.getElementById('bpjs-file').click()">
+      <span id="bpjs-drop-label">Klik untuk pilih gambar kartu BPJS (maks. 3 MB)</span>
+      <input type="file" id="bpjs-file" accept="image/*" style="display:none" onchange="handleBpjsFile(event)">
+      <div id="bpjs-preview"></div>
+    </div>`;
+  el('mo-bpjs').classList.add('open');
+}
+
+function handleBpjsFile(e){
+  const f=e.target.files[0]; if(!f) return;
+  if(f.size>3*1024*1024){ alert('Ukuran file maks. 3 MB.'); e.target.value=''; return; }
+  const r=new FileReader();
+  r.onload=ev=>{
+    _bpjsFile=ev.target.result;
+    el('bpjs-drop').classList.add('has-file');
+    el('bpjs-drop-label').textContent='✓ '+f.name;
+    el('bpjs-preview').innerHTML=`<img src="${_bpjsFile}" style="max-width:100%;border-radius:6px;margin-top:8px">`;
+  };
+  r.readAsDataURL(f);
+}
+
+function saveBpjs(){
+  if(!_bpjsFile){ alert('Silakan pilih gambar kartu BPJS terlebih dahulu.'); return; }
+  const key=empKey(_bpjsEmpType,_bpjsEmpId);
+  HR.bpjs[key]=_bpjsFile;
+  saveHrData().then(()=>{
+    closeM('mo-bpjs'); renderHrBpjsTable();
+    showSync('✅ Kartu BPJS tersimpan');
+  }).catch(()=>{ alert('Gagal menyimpan. Periksa koneksi internet.'); });
+}
+
+function clearBpjsCard(empId,empType){
+  if(!confirm('Hapus kartu BPJS karyawan ini?')) return;
+  delete HR.bpjs[empKey(empType,empId)];
+  saveHrData().then(renderHrBpjsTable);
+}
+
+// ==================== PORTAL KARYAWAN: DATA & HR ====================
+function renderProfilEmpPage(){
+  const box=el('ep-tab-content-profil'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const p=HR.profil[empKey(empType,empId)];
+  if(!p){ box.innerHTML='<div class="izin-empty">Biodata Anda belum diisi oleh HRD. Silakan hubungi HRD untuk melengkapi data.</div>'; return; }
+  const anakHtml=(p.anak||[]).filter(Boolean).map((a,i)=>`<div><span>Anak ${i+1}</span><span>${escapeHtml(a)}</span></div>`).join('');
+  box.innerHTML=`
+    <div class="izin-form-card">
+      ${p.foto?`<img src="${p.foto}" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 14px;border:2px solid var(--border)">`:''}
+      <div class="sdiv" style="margin-top:0">Data Pribadi</div>
+      <div class="hr-info-grid">
+        <div><span>Nama Lengkap</span><span>${escapeHtml(p.namaLengkap||'-')}</span></div>
+        <div><span>Nama Panggilan</span><span>${escapeHtml(p.namaPanggil||'-')}</span></div>
+        <div><span>Jabatan</span><span>${escapeHtml(p.jabatan||'-')}</span></div>
+        <div><span>NIK KTP</span><span>${escapeHtml(p.nik||'-')}</span></div>
+        <div><span>Tempat, Tanggal Lahir</span><span>${escapeHtml(p.tempatLahir||'-')}, ${p.tglLahir?new Date(p.tglLahir+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}):'-'}</span></div>
+        <div><span>Status Pernikahan</span><span>${escapeHtml(p.statusNikah||'-')}</span></div>
+        <div><span>No. HP</span><span>${escapeHtml(p.noHp||'-')}</span></div>
+        <div><span>Email</span><span>${escapeHtml(p.email||'-')}</span></div>
+        <div><span>Mulai Bekerja</span><span>${p.mulaiKerja?new Date(p.mulaiKerja+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'}):'-'}</span></div>
+      </div>
+      <div class="fg" style="margin-bottom:14px"><label>Alamat Lengkap</label><div style="font-size:13px;margin-top:4px">${escapeHtml(p.alamat||'-')}</div></div>
+      <div class="sdiv">Data Keluarga</div>
+      <div class="hr-info-grid">
+        <div><span>Nama Ayah</span><span>${escapeHtml((p.ayah&&p.ayah.nama)||'-')} ${p.ayah&&p.ayah.nama?'('+escapeHtml(p.ayah.status||'-')+')':''}</span></div>
+        <div><span>Nama Ibu</span><span>${escapeHtml((p.ibu&&p.ibu.nama)||'-')} ${p.ibu&&p.ibu.nama?'('+escapeHtml(p.ibu.status||'-')+')':''}</span></div>
+        <div><span>Nama Istri/Suami</span><span>${escapeHtml(p.pasangan||'-')}</span></div>
+        <div><span>No. HP Penjamin</span><span>${escapeHtml(p.penjaminHp||'-')} ${p.penjaminHp?'('+escapeHtml(p.penjaminSebagai||'-')+')':''}</span></div>
+        ${anakHtml}
+      </div>
+    </div>`;
+}
+
+function renderTopScoreEmpPage(){
+  const box=el('ep-tab-content-topscore'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const rows=HR.topScore.filter(r=>r.empId===empId&&r.empType===empType).sort((a,b)=>(a.posisi||9)-(b.posisi||9));
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Anda belum masuk dalam daftar Top Score.</div>'; return; }
+  const medal={1:'🥇',2:'🥈',3:'🥉'};
+  box.innerHTML=rows.map(r=>`<div class="izin-card-item">
+    <div class="izin-card-top">
+      <div class="izin-card-name medal-${r.posisi}">${medal[r.posisi]||''} Top Score ${r.posisi}</div>
+    </div>
+    <div class="izin-card-desc">Nilai yang diterima: <b>${rp(r.nilai)}</b></div>
+  </div>`).join('');
+}
+
+function renderCutiEmpPage(){
+  const box=el('ep-tab-content-cuti'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const rows=HR.cuti.filter(r=>r.empId===empId&&r.empType===empType).sort((a,b)=>(a.bulan||0)-(b.bulan||0));
+  const total=rows.reduce((a,b)=>a+(b.quota||0),0);
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data kuota cuti untuk Anda.</div>'; return; }
+  box.innerHTML=`<div class="hr-total-bar"><div><div class="lbl">Total Kuota Cuti</div><div class="val">${total} hari</div></div></div>`+
+    rows.map(r=>`<div class="izin-card-item">
+      <div class="izin-card-top"><div class="izin-card-name">${MONTHS[r.bulan]}</div></div>
+      <div class="izin-card-desc">Kuota: <b>${r.quota} hari</b></div>
+    </div>`).join('');
+}
+
+function renderPointEmpPage(){
+  const box=el('ep-tab-content-point'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const rows=HR.point.filter(r=>r.empId===empId&&r.empType===empType);
+  const totPoint=rows.reduce((a,b)=>a+(b.jumlahPoint||0),0);
+  const totNilai=rows.reduce((a,b)=>a+(b.nilaiRupiah||0),0);
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data point pekerjaan untuk Anda.</div>'; return; }
+  box.innerHTML=`<div class="hr-total-bar"><div><div class="lbl">Total Point</div><div class="val">${totPoint} pt</div></div><div style="text-align:right"><div class="lbl">Total Nilai Rupiah</div><div class="val">${rp(totNilai)}</div></div></div>`+
+    rows.map(r=>`<div class="izin-card-item">
+      <div class="izin-card-desc"><b>${r.jumlahPoint||0} pt</b> &bull; ${rp(r.nilaiRupiah)}</div>
+    </div>`).join('');
+}
+
+function renderBpjsEmpPage(){
+  const box=el('ep-tab-content-bpjs'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const img=HR.bpjs[empKey(empType,empId)];
+  if(!img){ box.innerHTML='<div class="izin-empty">Kartu BPJS Ketenagakerjaan Anda belum diunggah oleh HRD.</div>'; return; }
+  box.innerHTML=`<div class="izin-form-card" style="text-align:center"><img src="${img}" class="bpjs-card-img"></div>`;
+}
+
+function renderTambahanEmpPage(){
+  const box=el('ep-tab-content-tambahan'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const rows=HR.tambahan.filter(r=>r.empId===empId&&r.empType===empType);
+  const total=rows.reduce((a,b)=>a+(b.pendapatan||0),0);
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Belum ada data pendapatan lainnya untuk Anda.</div>'; return; }
+  box.innerHTML=`<div class="hr-total-bar"><div><div class="lbl">Total Pendapatan Lainnya</div><div class="val">${rp(total)}</div></div></div>`+
+    rows.map(r=>`<div class="izin-card-item">
+      <div class="izin-card-desc"><b>${rp(r.pendapatan)}</b>${r.keterangan?' — '+escapeHtml(r.keterangan):''}</div>
+    </div>`).join('');
 }
 
 // ==================== EMPLOYEES ====================

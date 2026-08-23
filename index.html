@@ -1287,7 +1287,7 @@ function initAuth(){
 }
 
 // ==================== EMPLOYEE PORTAL ====================
-const EP_TABS = [
+const EP_TABS_FULL = [
   {id:'gaji', label:'💰 Gaji Saya', fn:'updateEPSalary'},
   {id:'izin', label:'📝 Ajukan Izin', fn:'renderIzinEmpPage'},
   {id:'profil', label:'🪪 Data Saya', fn:'renderProfilEmpPage'},
@@ -1297,12 +1297,23 @@ const EP_TABS = [
   {id:'bpjs', label:'💳 BPJS', fn:'renderBpjsEmpPage'},
   {id:'tambahan', label:'➕ Lainnya', fn:'renderTambahanEmpPage'}
 ];
+// Akun Staff hanya menampilkan 3 menu: Gaji Saya, KPI (Point), dan Ajukan Izin
+const EP_TABS_STAFF = [
+  {id:'gaji', label:'💰 Gaji Saya', fn:'updateEPSalary'},
+  {id:'point', label:'🎯 KPI', fn:'renderPointEmpPage'},
+  {id:'izin', label:'📝 Ajukan Izin', fn:'renderIzinEmpPage'}
+];
+function getEpTabs(empType){
+  return empType==='st' ? EP_TABS_STAFF : EP_TABS_FULL;
+}
 
 function renderEmpPortal(){
   const {empId, empType}=_portalEmp;
   const emp=S.employees[empType]?.find(e=>e.id===empId);
   el('ep-coname').innerHTML=(CFG.nama||'CV. MITRA MULTI TEKNIK')+'<span>Portal Karyawan</span>';
   if(!emp){ el('ep-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--text-muted)">Data tidak ditemukan. Hubungi HR.</div>'; return; }
+  const EP_TABS=getEpTabs(empType);
+  if(!EP_TABS.find(t=>t.id===_epTab)) _epTab=EP_TABS[0].id;
   const now=new Date();
   const mSel=MONTHS.map((m,i)=>`<option value="${i}" ${i===now.getMonth()?'selected':''}>${m}</option>`).join('');
   const ySel=[2023,2024,2025,2026].map(y=>`<option value="${y}" ${y===now.getFullYear()?'selected':''}>${y}</option>`).join('');
@@ -1333,11 +1344,13 @@ function renderEmpPortal(){
 
 function switchEpTab(tab){
   _epTab=tab;
+  const EP_TABS=getEpTabs(_portalEmp?_portalEmp.empType:null);
   EP_TABS.forEach(t=>{
     const btn=el('ep-tab-'+t.id); if(btn) btn.classList.toggle('active', tab===t.id);
     const panel=el('ep-tab-content-'+t.id); if(panel) panel.style.display = tab===t.id ? '' : 'none';
   });
-  window[EP_TABS.find(t=>t.id===tab).fn]();
+  const found=EP_TABS.find(t=>t.id===tab);
+  if(found) window[found.fn]();
 }
 
 function updateEPSalary(){

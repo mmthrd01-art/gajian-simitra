@@ -486,6 +486,7 @@ try{
       <button class="sb-btn" onclick="showPage('gaji-nfc',this)"><span class="sb-icon">💵</span>Gaji Non-Fix Cost</button>
       <button class="sb-btn" onclick="showPage('gaji-fc',this)"><span class="sb-icon">💵</span>Gaji Fix Cost</button>
       <button class="sb-btn" onclick="showPage('gaji-st',this)"><span class="sb-icon">💵</span>Gaji Staff</button>
+      <button class="sb-btn" onclick="showPage('kpi-admin',this)"><span class="sb-icon">🎯</span>Nilai KPI</button>
     </div>
     <div class="sb-sec">
       <div class="sb-sec-title">Izin Karyawan</div>
@@ -615,6 +616,30 @@ try{
     <div id="page-gaji-st" class="page">
       <div class="ph"><h1>Penggajian Staff</h1></div>
       <div id="gc-st"></div>
+    </div>
+
+    <!-- NILAI KPI (ADMIN) -->
+    <div id="page-kpi-admin" class="page">
+      <div class="ph"><h1>Nilai KPI Karyawan</h1><p>Isi Capaian KPI (%), Grade, dan Nilai Rupiah per karyawan &mdash; otomatis terjumlah ke gaji &amp; slip gaji</p></div>
+      <div class="rekap-bar">
+        <label>Periode:</label>
+        <select id="kpi-mon" onchange="renderKpiAdmin()">
+          <option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option><option value="3">April</option>
+          <option value="4">Mei</option><option value="5">Juni</option><option value="6">Juli</option><option value="7">Agustus</option>
+          <option value="8">September</option><option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option>
+        </select>
+        <select id="kpi-yr" onchange="renderKpiAdmin()">
+          <option>2024</option><option selected>2025</option><option>2026</option>
+        </select>
+        <select id="kpi-type" onchange="renderKpiAdmin()">
+          <option value="all">Semua Kategori</option>
+          <option value="nfc">Tim Ops Non-Fix</option>
+          <option value="fc">Tim Ops Fix Cost</option>
+          <option value="st">Staff</option>
+        </select>
+        <input type="text" class="search-box" id="kpi-search" placeholder="🔍 Cari nama / NIK..." oninput="renderKpiAdmin()" style="max-width:220px">
+      </div>
+      <div id="kpi-admin-content"></div>
     </div>
 
     <!-- REKAP HARIAN -->
@@ -836,6 +861,15 @@ try{
   </div>
 </div>
 
+<!-- ===== MODAL NILAI KPI ===== -->
+<div class="mo" id="mo-kpi">
+  <div class="mbox" style="width:480px">
+    <div class="mhd"><h2 id="mo-kpi-title">Isi Nilai KPI</h2><button class="btn btn-sm" onclick="closeM('mo-kpi')">✕</button></div>
+    <div class="mbd" id="mo-kpi-body"></div>
+    <div class="mft"><button class="btn" onclick="closeM('mo-kpi')">Batal</button><button class="btn btn-primary" onclick="saveKpiModal()">💾 Simpan</button></div>
+  </div>
+</div>
+
 <!-- ===== MODAL AKUN USER ===== -->
 <div class="mo" id="mo-user">
   <div class="mbox" style="width:500px">
@@ -904,6 +938,14 @@ function combinedEmpList(){
   ['nfc','fc','st'].forEach(t=>{ (S.employees[t]||[]).forEach(e=>out.push({id:e.id,type:t,nama:e.nama,jabatan:e.jabatan})); });
   return out;
 }
+function getKpiKey(type,empId,mon,yr){ return `${type}_${empId}_${mon}_${yr}`; }
+function getKpiData(type,empId,mon,yr){
+  const k=getKpiKey(type,empId,mon,yr);
+  return KPI_DATA[k] || {capaian:0, grade:'', nilai:0};
+}
+function getKpiNilai(type,empId,mon,yr){
+  return (getKpiData(type,empId,mon,yr).nilai)||0;
+}
 
 // ==================== STATE ====================
 let S = {
@@ -914,9 +956,11 @@ let S = {
 };
 let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:''};
 let HR = { profil:{}, topScore:[], cuti:[], point:[], bpjs:{}, tambahan:[] };
+let KPI_DATA = {}; // key: `${type}_${empId}_${mon}_${yr}` -> {capaian, grade, nilai}
 
 let _empType=null, _empId=null;
 let _salType=null, _salEmpId=null, _salMon=null, _salYr=null;
+let _kpiType=null, _kpiEmpId=null, _kpiMon=null, _kpiYr=null;
 let _userAccId=null;
 let _loginRole='hr';
 let _portalEmp=null;
@@ -959,6 +1003,14 @@ function saveState(){
 function saveIzinState(){
   if(!_fbReady){console.warn('Firebase belum siap');return;}
   return DB.ref('izin').set(S.izinRequests)
+    .then(()=>showSync('✅ Tersimpan ke cloud'))
+    .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
+}
+
+// ── Tulis data KPI (capaian %, grade, nilai rupiah per periode) — terpisah, tapi ikut terjumlah otomatis ke perhitungan gaji
+function saveKpiState(){
+  if(!_fbReady){console.warn('Firebase belum siap');return Promise.reject('offline');}
+  return DB.ref('kpi').set(KPI_DATA)
     .then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
 }
@@ -1015,6 +1067,7 @@ function attachFirebaseListeners(){
       else if(pid==='gaji-nfc') renderGajiTable('nfc');
       else if(pid==='gaji-fc')  renderGajiTable('fc');
       else if(pid==='gaji-st')  renderGajiTable('st');
+      else if(pid==='kpi-admin') renderKpiAdmin();
       else if(pid==='rekap')    renderRekap();
       else if(pid==='users')    renderUserTable();
       else if(pid==='izin-admin') renderIzinAdmin();
@@ -1048,6 +1101,26 @@ function attachFirebaseListeners(){
     const activePage = document.querySelector('.page.active');
     if(activePage && activePage.id==='page-izin-admin') renderIzinAdmin();
     if(document.getElementById('emp-portal').style.display==='block' && _epTab==='izin') renderIzinEmpPage();
+  });
+  // Data Nilai KPI (terpisah, tapi otomatis terjumlah ke perhitungan gaji & slip)
+  DB.ref('kpi').on('value', snap=>{
+    const d=snap.val();
+    KPI_DATA = d && typeof d==='object' ? d : {};
+    const activePage = document.querySelector('.page.active');
+    if(activePage && activePage.id==='page-kpi-admin') renderKpiAdmin();
+    // Muat ulang tampilan gaji/slip agar nilai KPI terjumlah otomatis
+    if(activePage){
+      const pid=activePage.id.replace('page-','');
+      if(pid==='gaji-nfc') renderGajiTable('nfc');
+      else if(pid==='gaji-fc') renderGajiTable('fc');
+      else if(pid==='gaji-st') renderGajiTable('st');
+      else if(pid==='dashboard') renderDashboard();
+      else if(pid==='rekap') renderRekap();
+    }
+    if(document.getElementById('emp-portal').style.display==='block' && _portalEmp){
+      if(_epTab==='gaji') updateEPSalary();
+      else if(_epTab==='kpi') renderKpiEmpPage();
+    }
   });
   // Data HR: biodata, top score, cuti, point pekerjaan, kartu BPJS, pendapatan lainnya (terpisah dari gaji & izin)
   DB.ref('hrdata').on('value', snap=>{
@@ -1194,6 +1267,7 @@ function showPage(id, btn){
   else if(id==='gaji-nfc') renderGajiPage('nfc');
   else if(id==='gaji-fc') renderGajiPage('fc');
   else if(id==='gaji-st') renderGajiPage('st');
+  else if(id==='kpi-admin') renderKpiAdmin();
   else if(id==='rekap') renderRekap();
   else if(id==='users') renderUserTable();
   else if(id==='izin-admin') renderIzinAdmin();
@@ -1297,10 +1371,10 @@ const EP_TABS_FULL = [
   {id:'bpjs', label:'💳 BPJS', fn:'renderBpjsEmpPage'},
   {id:'tambahan', label:'➕ Lainnya', fn:'renderTambahanEmpPage'}
 ];
-// Akun Staff hanya menampilkan 3 menu: Gaji Saya, KPI (Point), dan Ajukan Izin
+// Akun Staff hanya menampilkan 3 menu: Gaji Saya, KPI, dan Ajukan Izin
 const EP_TABS_STAFF = [
   {id:'gaji', label:'💰 Gaji Saya', fn:'updateEPSalary'},
-  {id:'point', label:'🎯 KPI', fn:'renderPointEmpPage'},
+  {id:'kpi', label:'🎯 KPI', fn:'renderKpiEmpPage'},
   {id:'izin', label:'📝 Ajukan Izin', fn:'renderIzinEmpPage'}
 ];
 function getEpTabs(empType){
@@ -1327,6 +1401,14 @@ function renderEmpPortal(){
         <button class="slip-btn" onclick="openEPSlip()">📄 Lihat Slip Gaji</button>
       </div>
       <div id="ep-sal"></div>
+    </div>`;
+    if(t.id==='kpi') return `<div id="ep-tab-content-kpi" style="${_epTab==='kpi'?'':'display:none'}">
+      <div class="period-bar">
+        <label>Periode:</label>
+        <select id="ep-kpi-mon" onchange="renderKpiEmpPage()">${mSel}</select>
+        <select id="ep-kpi-yr" onchange="renderKpiEmpPage()">${ySel}</select>
+      </div>
+      <div id="ep-kpi"></div>
     </div>`;
     return `<div id="ep-tab-content-${t.id}" style="${_epTab===t.id?'':'display:none'}"></div>`;
   }).join('');
@@ -1367,10 +1449,11 @@ function updateEPSalary(){
   const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
   const totCash=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
   const totPot=totCash+ptl+ptm+ptp;
+  const totKpi=getKpiNilai(empType,empId,mon,yr);
   let gajiDasar=0;
   if(empType==='nfc') gajiDasar=(emp.gajiPerHari||0)*sd.jumlahHadir;
   else { const gp=sd.gajiPokok||emp.gajiPokok||0,tj=sd.tunjJabatan||emp.tunjJabatan||0; gajiDasar=gp+tj+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir; }
-  const totBersih=gajiDasar+totLem+totPend+totLain-totPot;
+  const totBersih=gajiDasar+totLem+totPend+totLain+totKpi-totPot;
   let gajiRows='';
   if(empType==='nfc') gajiRows=`<div class="sv-row"><span>Gaji pokok (${sd.jumlahHadir} hari × ${rp(emp.gajiPerHari)})</span><span>${rp(gajiDasar)}</span></div>`;
   else {
@@ -1388,8 +1471,8 @@ function updateEPSalary(){
       <div class="sv-head">Rincian Gaji – ${MONTHS[mon]} ${yr} <span style="float:right;font-size:11px;font-weight:600;color:var(--text-muted)">${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
       <div class="sv-body">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Penghasilan</div>
-        ${gajiRows}${totLem>0?`<div class="sv-row"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}${pendRows}${lainRows}
-        <div class="sv-row" style="font-weight:700;color:var(--primary)"><span>Jumlah Penghasilan</span><span>${rp(gajiDasar+totLem+totPend+totLain)}</span></div>
+        ${gajiRows}${totLem>0?`<div class="sv-row"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}${pendRows}${lainRows}${totKpi>0?`<div class="sv-row"><span style="color:#7C3AED">🎯 Nilai KPI</span><span style="color:#7C3AED">${rp(totKpi)}</span></div>`:''}
+        <div class="sv-row" style="font-weight:700;color:var(--primary)"><span>Jumlah Penghasilan</span><span>${rp(gajiDasar+totLem+totPend+totLain+totKpi)}</span></div>
         ${totPot>0?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--danger);margin:12px 0 6px">Potongan</div>
         ${cashRows}
         ${ptl>0?`<div class="sv-row"><span style="color:var(--danger)">Potongan terlambat (${sd.potTerlambatJml}×)</span><span style="color:var(--danger)">- ${rp(ptl)}</span></div>`:''}
@@ -2138,6 +2221,32 @@ function renderPointEmpPage(){
     </div>`).join('');
 }
 
+function renderKpiEmpPage(){
+  const box=el('ep-kpi'); if(!box) return;
+  const {empId,empType}=_portalEmp;
+  const mSel=el('ep-kpi-mon'), ySel=el('ep-kpi-yr');
+  const now=new Date();
+  const mon=mSel?parseInt(mSel.value):now.getMonth();
+  const yr=ySel?parseInt(ySel.value):now.getFullYear();
+  const kd=getKpiData(empType,empId,mon,yr);
+  if(!kd.capaian && !kd.grade && !kd.nilai){
+    box.innerHTML=`<div class="izin-empty">Belum ada data KPI untuk Anda pada periode ${MONTHS[mon]} ${yr}.</div>`;
+    return;
+  }
+  box.innerHTML=`
+    <div class="hr-total-bar">
+      <div><div class="lbl">Capaian KPI ${MONTHS[mon]} ${yr}</div><div class="val">${kd.capaian?kd.capaian+'%':'-'}</div></div>
+      <div style="text-align:right"><div class="lbl">Nilai KPI</div><div class="val">${rp(kd.nilai||0)}</div></div>
+    </div>
+    <div class="izin-card-item">
+      <div class="izin-card-top">
+        <div class="izin-card-name">🎯 Grade</div>
+        ${kpiGradeBadge(kd.grade)}
+      </div>
+      <div class="izin-card-desc">Nilai KPI bulan ini otomatis ditambahkan ke penghasilan pada Gaji Saya &amp; slip gaji periode ${MONTHS[mon]} ${yr}.</div>
+    </div>`;
+}
+
 function renderBpjsEmpPage(){
   const box=el('ep-tab-content-bpjs'); if(!box) return;
   const {empId,empType}=_portalEmp;
@@ -2324,10 +2433,11 @@ function renderGajiTable(type){
       const tl=sd.lembur.reduce((a,b)=>a+(b*(emp.lemburPerJam||0)),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
       const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
+      const kpiNilai=getKpiNilai('nfc',emp.id,mon,yr);
       const pot=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0)+(sd.potTerlambatJml||0)*(emp.potTerlambat||0)+(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0)+(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
-      const tot=gh+tl+tp+tLain-pot; totGaji+=tot;
+      const tot=gh+tl+tp+tLain+kpiNilai-pot; totGaji+=tot;
       return `<tr><td><b>${emp.nama}</b><br><small style="color:var(--text-muted)">${emp.jabatan}</small></td>
-        <td>${sd.jumlahHadir} hari</td><td>${rp(gh)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}</td>
+        <td>${sd.jumlahHadir} hari</td><td>${rp(gh)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}${kpiNilai>0?`<br><small style="color:#7C3AED">KPI: ${rp(kpiNilai)}</small>`:''}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('nfc','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
     }).join(''):`<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
@@ -2340,15 +2450,92 @@ function renderGajiTable(type){
       const tl=sd.lembur.reduce((a,b)=>a+(b*(emp.lemburPerJam||0)),0);
       const tp=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
       const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
+      const kpiNilai=getKpiNilai(type,emp.id,mon,yr);
       const pot=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0)+(sd.potTerlambatJml||0)*(emp.potTerlambat||0)+(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0)+(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
-      const tot=gpj+th+tl+tp+tLain-pot; totGaji+=tot;
+      const tot=gpj+th+tl+tp+tLain+kpiNilai-pot; totGaji+=tot;
       return `<tr><td><b>${emp.nama}</b><br><small style="color:var(--text-muted)">${emp.jabatan}</small></td>
-        <td>${sd.jumlahHadir} hari</td><td>${rp(gpj)}</td><td>${rp(th)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}</td>
+        <td>${sd.jumlahHadir} hari</td><td>${rp(gpj)}</td><td>${rp(th)}</td><td>${rp(tl)}</td><td>${rp(tp+tLain)}${kpiNilai>0?`<br><small style="color:#7C3AED">KPI: ${rp(kpiNilai)}</small>`:''}</td>
         <td style="color:var(--danger)">${rp(pot)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td>
         <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openSalDetail('${type}','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
     }).join(''):`<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px">${q?'Tidak ada karyawan yang cocok dengan pencarian "'+q+'".':'Belum ada karyawan aktif.'}</td></tr>`;
   }
   el('gsb-'+type).innerHTML=`<div class="sum-bar"><div><div class="lbl">Total Gaji ${MONTHS[mon]} ${yr}</div><div class="val">${rp(totGaji)}</div></div><div style="text-align:right"><div class="lbl">Karyawan Ditampilkan</div><div class="val">${emps.length} orang</div></div></div>`;
+}
+
+// ==================== NILAI KPI (ADMIN) ====================
+function kpiGradeBadge(grade){
+  if(!grade) return '<span style="color:var(--text-muted);font-size:12px">-</span>';
+  const map={A:'badge-s',B:'badge-i',C:'badge-w',D:'badge-d'};
+  return `<span class="badge ${map[grade]||'badge-i'}">Grade ${grade}</span>`;
+}
+
+function renderKpiAdmin(){
+  const box=el('kpi-admin-content'); if(!box) return;
+  const mon=parseInt(gv('kpi-mon')), yr=parseInt(gv('kpi-yr'));
+  const ft=gv('kpi-type')||'all';
+  const q=(gv('kpi-search')||'').trim().toLowerCase();
+  const types=ft==='all'?['nfc','fc','st']:[ft];
+  let rows=[];
+  types.forEach(type=>{
+    S.employees[type].filter(e=>e.aktif).forEach(emp=>{
+      if(q && !(emp.nama||'').toLowerCase().includes(q) && !(emp.nik||'').toLowerCase().includes(q)) return;
+      const kd=getKpiData(type,emp.id,mon,yr);
+      rows.push({type,emp,kd});
+    });
+  });
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Tidak ada karyawan aktif yang cocok.</div>'; return; }
+  const totNilai=rows.reduce((a,r)=>a+(r.kd.nilai||0),0);
+  box.innerHTML=`
+    <div class="sum-bar" style="margin-bottom:16px"><div><div class="lbl">Total Nilai KPI ${MONTHS[mon]} ${yr}</div><div class="val">${rp(totNilai)}</div></div><div style="text-align:right"><div class="lbl">Karyawan Ditampilkan</div><div class="val">${rows.length} orang</div></div></div>
+    <div class="card"><table><thead><tr>
+      <th>Nama / Jabatan</th><th>Kategori</th><th>Capaian KPI</th><th>Grade</th><th>Nilai (Rp)</th><th>Aksi</th>
+    </tr></thead><tbody>
+    ${rows.map(r=>`<tr>
+      <td><b>${escapeHtml(r.emp.nama)}</b><br><small style="color:var(--text-muted)">${escapeHtml(r.emp.jabatan||'-')}</small></td>
+      <td><span class="badge badge-i">${TYPE_LABELS[r.type]}</span></td>
+      <td style="font-weight:700">${r.kd.capaian?r.kd.capaian+'%':'-'}</td>
+      <td>${kpiGradeBadge(r.kd.grade)}</td>
+      <td style="font-weight:700;color:var(--primary)">${r.kd.nilai?rp(r.kd.nilai):'-'}</td>
+      <td style="white-space:nowrap"><button class="btn btn-sm btn-primary" onclick="openKpiModal('${r.type}','${r.emp.id}',${mon},${yr})">✏️ Isi KPI</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function openKpiModal(type,empId,mon,yr){
+  _kpiType=type; _kpiEmpId=empId; _kpiMon=mon; _kpiYr=yr;
+  const emp=S.employees[type].find(e=>e.id===empId);
+  const kd=getKpiData(type,empId,mon,yr);
+  el('mo-kpi-title').textContent=`Isi Nilai KPI — ${emp?emp.nama:''} | ${MONTHS[mon]} ${yr}`;
+  el('mo-kpi-body').innerHTML=`
+    <div class="fg" style="margin-bottom:12px"><label>Capaian KPI (%)</label>
+      <input type="number" id="kpi-capaian" value="${kd.capaian||0}" min="0" max="200" step="0.1">
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>Grade</label>
+      <select id="kpi-grade">
+        <option value="" ${!kd.grade?'selected':''}>-- Pilih Grade --</option>
+        <option value="A" ${kd.grade==='A'?'selected':''}>A</option>
+        <option value="B" ${kd.grade==='B'?'selected':''}>B</option>
+        <option value="C" ${kd.grade==='C'?'selected':''}>C</option>
+        <option value="D" ${kd.grade==='D'?'selected':''}>D</option>
+      </select>
+    </div>
+    <div class="fg"><label>Nilai KPI (Rp)</label>
+      <input type="number" id="kpi-nilai" value="${kd.nilai||0}" min="0">
+    </div>
+    <div class="info-box" style="margin-top:14px">ℹ️ &nbsp;Nilai Rupiah di atas akan otomatis terjumlah ke penghasilan pada tabel gaji, slip gaji, dan portal karyawan untuk periode ${MONTHS[mon]} ${yr}.</div>`;
+  el('mo-kpi').classList.add('open');
+}
+
+function saveKpiModal(){
+  const capaian=pf(gv('kpi-capaian'));
+  const grade=gv('kpi-grade');
+  const nilai=gn('kpi-nilai');
+  const k=getKpiKey(_kpiType,_kpiEmpId,_kpiMon,_kpiYr);
+  KPI_DATA[k]={capaian,grade,nilai};
+  saveKpiState().then(()=>{
+    closeM('mo-kpi'); renderKpiAdmin();
+    showSync('✅ Nilai KPI tersimpan');
+  }).catch(()=>{ alert('Gagal menyimpan. Periksa koneksi internet.'); });
 }
 
 // ==================== SALARY DETAIL ====================
@@ -2407,6 +2594,7 @@ function openSalDetail(type,empId,mon,yr){
     <div class="sdiv" style="margin-top:14px">Pembayaran Lain-lain</div>
     ${lainRows}
     <div class="sal-row"><span style="color:var(--text-muted)">Total Pembayaran Lain-lain</span><span id="sc-lain">-</span></div>
+    <div class="sal-row"><span style="color:var(--text-muted)">Nilai KPI (diisi di menu Nilai KPI)</span><span id="sc-kpi" style="color:#7C3AED;font-weight:700">${rp(getKpiNilai(type,empId,mon,yr))}</span></div>
     <div class="sdiv" style="margin-top:14px">POTONGAN</div>
     ${cashRows}
     <div class="fg3" style="margin:10px 0">
@@ -2433,13 +2621,14 @@ function calcSal(){
   let totPend=0; for(let i=0;i<10;i++) totPend+=pn(gv('pr-'+i));
   let totLain=0; for(let i=0;i<10;i++) totLain+=pn(gv('lr-'+i));
   let totCash=0; for(let i=0;i<10;i++) totCash+=pn(gv('cr-'+i));
+  const totKpi=getKpiNilai(type,_salEmpId,_salMon,_salYr);
   const ptl=(parseInt(gv('sd-ptl'))||0)*(emp.potTerlambat||0);
   const ptm=(parseInt(gv('sd-ptm'))||0)*(emp.potTdkMasuk||0);
   const ptp=(parseInt(gv('sd-ptp'))||0)*(emp.potTdkPulang||0);
   const totPot=totCash+ptl+ptm+ptp;
   setText('sc-lem',rp(totLem)); setText('sc-pend',rp(totPend)); setText('sc-lain',rp(totLain));
   setText('sc-ptl',rp(ptl)); setText('sc-ptm',rp(ptm)); setText('sc-ptp',rp(ptp));
-  setText('sc-pot',rp(totPot)); setText('sc-final',rp(base+totLem+totPend+totLain-totPot));
+  setText('sc-pot',rp(totPot)); setText('sc-final',rp(base+totLem+totPend+totLain+totKpi-totPot));
 }
 
 function saveSalDetail(){
@@ -2479,9 +2668,10 @@ function openSlip(type,empId,mon,yr){
   const totPend=sd.pendapatanTambahan.reduce((a,b)=>a+(b.rp||0),0);
   const totLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
   const totCash=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0);
+  const kd=getKpiData(type,empId,mon,yr), totKpi=kd.nilai||0;
   const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0), ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0), ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
   const totPot=totCash+ptl+ptm+ptp;
-  const totPenghasilan=base+totLem+totPend+totLain, totBersih=totPenghasilan-totPot;
+  const totPenghasilan=base+totLem+totPend+totLain+totKpi, totBersih=totPenghasilan-totPot;
   const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
   const logoH=CFG.logo?`<img src="${CFG.logo}">`:'<span style="font-size:22px">🏢</span>';
   const ttdH=CFG.ttd?`<img src="${CFG.ttd}">`:'';
@@ -2513,6 +2703,7 @@ function openSlip(type,empId,mon,yr){
       ${totLem>0?`<div class="slip-line m"><span>Total lembur</span><span>${rp(totLem)}</span></div>`:''}
       ${pendH}
       ${lainH}
+      ${totKpi>0?`<div class="slip-line m"><span>Nilai KPI${kd.grade?' (Grade '+kd.grade+(kd.capaian?', '+kd.capaian+'%':'')+')':''}</span><span>${rp(totKpi)}</span></div>`:''}
       <div class="slip-sub"><span>Jumlah Penghasilan</span><span>${rp(totPenghasilan)}</span></div>
       ${totPot>0?`<div class="slip-sec red">Potongan</div>${cashH}
         ${ptl>0?`<div class="slip-line m"><span>Potongan terlambat (${sd.potTerlambatJml}×)</span><span style="color:var(--danger)">- ${rp(ptl)}</span></div>`:''}
@@ -2578,10 +2769,11 @@ function renderDashboard(){
       const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const ptl=(sd.potTerlambatJml||0)*(emp.potTerlambat||0), ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0), ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
       const tc=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0), tpot=tc+ptl+ptm+ptp;
+      const tKpi=getKpiNilai(type,emp.id,mon,yr);
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const g=base+tl+tp+tLain-tpot; tot+=g; lem+=tl; denda+=ptl+ptm+ptp; hadir+=sd.jumlahHadir;
+      const g=base+tl+tp+tLain+tKpi-tpot; tot+=g; lem+=tl; denda+=ptl+ptm+ptp; hadir+=sd.jumlahHadir;
     });
     gTot+=tot; gLem+=lem; gDenda+=denda; gHadir+=hadir;
     return `<tr><td>${TYPE_LABELS[type]}</td><td>${emps.length} orang</td><td>${rp(tot-lem+lem)}</td><td>${rp(lem)}</td><td style="color:var(--danger)">${rp(denda)}</td><td style="font-weight:700;color:var(--primary)">${rp(tot)}</td></tr>`;
@@ -2604,7 +2796,7 @@ function renderRekap(){
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totKpi=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
@@ -2619,15 +2811,16 @@ function renderRekap(){
       const ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0);
       const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
       const totPotEmp=ct+ptl+ptm+ptp;
+      const kpiEmp=getKpiNilai(type,emp.id,mon,yr);
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const totGajiEmp=base+tl+tp+tLainEmp-totPotEmp;
+      const totGajiEmp=base+tl+tp+tLainEmp+kpiEmp-totPotEmp;
       const metode=sd.metodeBayar==='cash'?'cash':'transfer';
-      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp;
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp; totKpi+=kpiEmp;
       totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
       if(metode==='cash') totCashBayar+=totGajiEmp; else totTransferBayar+=totGajiEmp;
-      rows.push({empId:emp.id,type,nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,totPotEmp,ptl,ptm,ptp,metode});
+      rows.push({empId:emp.id,type,nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,kpiEmp,totPotEmp,ptl,ptm,ptp,metode});
     });
   });
   if(!rows.length){ el('rek-content').innerHTML='<div style="padding:30px;text-align:center;color:var(--text-muted)">Belum ada data karyawan aktif.</div>'; return; }
@@ -2646,12 +2839,13 @@ function renderRekap(){
     </div>
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
       <div class="sc i" style="flex:1;min-width:160px;padding:12px 16px;border-left:4px solid #7C3AED"><div class="sc-label">Total Pembayaran Lain-lain</div><div class="sc-val" style="font-size:18px;color:#7C3AED">${rp(totLain)}</div></div>
+      <div class="sc i" style="flex:1;min-width:160px;padding:12px 16px;border-left:4px solid #7C3AED"><div class="sc-label">🎯 Total Nilai KPI</div><div class="sc-val" style="font-size:18px;color:#7C3AED">${rp(totKpi)}</div></div>
       <div class="sc s" style="flex:1;min-width:160px;padding:12px 16px"><div class="sc-label">💵 Total Dibayar Cash</div><div class="sc-val" style="font-size:18px">${rp(totCashBayar)}</div></div>
       <div class="sc i" style="flex:1;min-width:160px;padding:12px 16px"><div class="sc-label">💳 Total Dibayar Transfer</div><div class="sc-val" style="font-size:18px">${rp(totTransferBayar)}</div></div>
     </div>
     <div class="card">
       <div class="card-hd"><span class="card-title">Rekap Harian – ${MONTHS[mon]} ${yr}</span></div>
-      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:center">Metode Bayar</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th><th>Pembayaran Lain-lain</th></tr></thead>
+      <table><thead><tr><th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:right">Nilai KPI</th><th style="text-align:center">Metode Bayar</th><th style="text-align:right">Total Cashbon</th><th>Detail Cashbon</th><th>Pembayaran Lain-lain</th></tr></thead>
       <tbody>
         ${rows.map((r,i)=>`<tr>
           <td style="color:var(--text-muted);font-size:12px">${i+1}</td><td><b>${r.nama}</b></td>
@@ -2659,6 +2853,7 @@ function renderRekap(){
           <td><span class="badge badge-i">${r.kat}</span></td>
           <td style="text-align:center;font-weight:700">${r.hadir}</td>
           <td style="text-align:right;font-weight:700;color:var(--primary)">${rp(r.totGajiEmp)}</td>
+          <td style="text-align:right;color:#7C3AED">${r.kpiEmp>0?rp(r.kpiEmp):'-'}</td>
           <td style="text-align:center;white-space:nowrap">
             <label style="margin-right:8px;font-size:11.5px;cursor:pointer"><input type="checkbox" ${r.metode==='cash'?'checked':''} onchange="setMetodeBayar('${r.type}','${r.empId}',${mon},${yr},'cash')"> 💵 Cash</label>
             <label style="font-size:11.5px;cursor:pointer"><input type="checkbox" ${r.metode==='transfer'?'checked':''} onchange="setMetodeBayar('${r.type}','${r.empId}',${mon},${yr},'transfer')"> 💳 Transfer</label>
@@ -2671,6 +2866,7 @@ function renderRekap(){
           <td colspan="5" style="text-align:right;color:var(--primary);padding-right:12px">TOTAL</td>
           <td style="text-align:center;color:var(--primary)">${totH}</td>
           <td style="text-align:right;color:var(--primary)">${rp(totGaji)}</td>
+          <td style="text-align:right;color:#7C3AED">${totKpi>0?rp(totKpi):'-'}</td>
           <td style="text-align:center;font-size:11px;color:var(--text-muted)">Cash: ${rp(totCashBayar)}<br>Transfer: ${rp(totTransferBayar)}</td>
           <td style="text-align:right;color:var(--danger)">${totC>0?rp(totC):'-'}</td>
           <td></td>
@@ -2685,7 +2881,7 @@ function printRekap(){
   const yr=parseInt(gv('rek-yr')||new Date().getFullYear());
   const ft=gv('rek-type')||'all';
   const types=ft==='all'?['nfc','fc','st']:[ft];
-  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
+  let rows=[], totH=0, totC=0, totGaji=0, totPend=0, totLain=0, totKpi=0, totPot=0, totTerlambat=0, totTM=0, totTP=0, totCashBayar=0, totTransferBayar=0;
   types.forEach(type=>{
     S.employees[type].filter(e=>e.aktif).forEach(emp=>{
       const sd=getSalData(type,emp,mon,yr);
@@ -2700,15 +2896,16 @@ function printRekap(){
       const ptm=(sd.potTdkMasukJml||0)*(emp.potTdkMasuk||0);
       const ptp=(sd.potTdkPulangJml||0)*(emp.potTdkPulang||0);
       const totPotEmp=ct+ptl+ptm+ptp;
+      const kpiEmp=getKpiNilai(type,emp.id,mon,yr);
       let base=0;
       if(type==='nfc') base=(emp.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||emp.gajiPokok||0)+(sd.tunjJabatan||emp.tunjJabatan||0)+((emp.tunjKehadiran||0)+(emp.tunjMakan||0)+(emp.tunjTransport||0))*sd.jumlahHadir;
-      const totGajiEmp=base+tl+tp+tLainEmp-totPotEmp;
+      const totGajiEmp=base+tl+tp+tLainEmp+kpiEmp-totPotEmp;
       const metode=sd.metodeBayar==='cash'?'cash':'transfer';
-      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp;
+      totH+=sd.jumlahHadir; totC+=ct; totGaji+=totGajiEmp; totPend+=tp; totLain+=tLainEmp; totPot+=totPotEmp; totKpi+=kpiEmp;
       totTerlambat+=ptl; totTM+=ptm; totTP+=ptp;
       if(metode==='cash') totCashBayar+=totGajiEmp; else totTransferBayar+=totGajiEmp;
-      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,totPotEmp,ptl,ptm,ptp,metode});
+      rows.push({nama:emp.nama,jabatan:emp.jabatan,nik:emp.nik||'',kat:TYPE_LABELS[type],hadir:sd.jumlahHadir,ct,ci,totGajiEmp,tp,tLainEmp,lainDetail,kpiEmp,totPotEmp,ptl,ptm,ptp,metode});
     });
   });
   const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
@@ -2718,6 +2915,7 @@ function printRekap(){
     <td style="text-align:center">${i+1}</td><td><b>${r.nama}</b></td><td>${r.nik}</td><td>${r.jabatan}</td><td>${r.kat}</td>
     <td style="text-align:center;font-weight:700">${r.hadir}</td>
     <td style="text-align:right;font-weight:700;color:#1B7A4B">${rp(r.totGajiEmp)}</td>
+    <td style="text-align:right;color:#7C3AED">${r.kpiEmp>0?rp(r.kpiEmp):'-'}</td>
     <td style="text-align:center">${r.metode==='cash'?'💵 Cash':'💳 Transfer'}</td>
     <td style="text-align:right">${r.tp>0?rp(r.tp):'-'}</td>
     <td style="text-align:right;color:#7C3AED">${r.tLainEmp>0?rp(r.tLainEmp):'-'}</td>
@@ -2766,12 +2964,13 @@ function printRekap(){
   </div>
   <div class="sumr3">
     <div><div class="l">Total Pembayaran Lain-lain</div><div class="v" style="color:#7C3AED">${rp(totLain)}</div></div>
+    <div><div class="l">🎯 Total Nilai KPI</div><div class="v" style="color:#7C3AED">${rp(totKpi)}</div></div>
     <div><div class="l">💵 Total Dibayar Cash</div><div class="v" style="color:#1B7A4B">${rp(totCashBayar)}</div></div>
     <div><div class="l">💳 Total Dibayar Transfer</div><div class="v" style="color:#1565C0">${rp(totTransferBayar)}</div></div>
   </div>
   <table><thead><tr>
     <th>#</th><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th>
-    <th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:center">Metode</th>
+    <th style="text-align:center">Hari Hadir</th><th style="text-align:right">Total Gaji</th><th style="text-align:right">Nilai KPI</th><th style="text-align:center">Metode</th>
     <th style="text-align:right">Pend. Tambahan</th><th style="text-align:right">Pembayaran Lain</th><th style="text-align:right">Cashbon</th>
     <th style="text-align:right">Total Potongan</th><th style="text-align:right">Pot. Terlambat</th>
     <th style="text-align:right">Pot. Tdk Masuk</th><th style="text-align:right">Pot. Tdk Pulang</th><th>Detail Cashbon</th><th>Detail Pembayaran Lain</th>
@@ -2780,6 +2979,7 @@ function printRekap(){
     <td colspan="5" style="text-align:right;padding-right:8px;color:#1E3A5F">TOTAL</td>
     <td style="text-align:center;color:#1E3A5F">${totH}</td>
     <td style="text-align:right;color:#1B7A4B">${rp(totGaji)}</td>
+    <td style="text-align:right;color:#7C3AED">${totKpi>0?rp(totKpi):'-'}</td>
     <td style="text-align:center;font-size:8px;color:#1E3A5F">C:${rp(totCashBayar)}<br>T:${rp(totTransferBayar)}</td>
     <td style="text-align:right;color:#1565C0">${totPend>0?rp(totPend):'-'}</td>
     <td style="text-align:right;color:#7C3AED">${totLain>0?rp(totLain):'-'}</td>
@@ -2966,10 +3166,11 @@ function getMonAgg(mon,yr){
       const tLain=(sd.pembayaranLain||[]).reduce((a,b)=>a+(b.rp||0),0);
       const ptl=(sd.potTerlambatJml||0)*(e.potTerlambat||0),ptm=(sd.potTdkMasukJml||0)*(e.potTdkMasuk||0),ptp=(sd.potTdkPulangJml||0)*(e.potTdkPulang||0);
       const tc=sd.cashbon.reduce((a,b)=>a+(b.rp||0),0),tpot=tc+ptl+ptm+ptp;
+      const tKpi=getKpiNilai(type,e.id,mon,yr);
       let base=0;
       if(type==='nfc') base=(e.gajiPerHari||0)*sd.jumlahHadir;
       else base=(sd.gajiPokok||e.gajiPokok||0)+(sd.tunjJabatan||e.tunjJabatan||0)+((e.tunjKehadiran||0)+(e.tunjMakan||0)+(e.tunjTransport||0))*sd.jumlahHadir;
-      gaji+=base+tl+tp+tLain-tpot; lem+=tl; denda+=ptl+ptm+ptp;
+      gaji+=base+tl+tp+tLain+tKpi-tpot; lem+=tl; denda+=ptl+ptm+ptp;
     });
   });
   return {emp,gaji,lem,denda};
@@ -3022,7 +3223,7 @@ function renderStatistik(){
 
 // ==================== BOOT ====================
 const _nm=new Date().getMonth();
-['dash-mon','rek-mon'].forEach(id=>{ const e=el(id); if(e) e.value=_nm; });
+['dash-mon','rek-mon','kpi-mon'].forEach(id=>{ const e=el(id); if(e) e.value=_nm; });
 
 (function boot(){
   applyLogoUI();

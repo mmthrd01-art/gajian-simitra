@@ -2067,6 +2067,21 @@ function renderHrTambahanTable(){
 }
 
 // ==================== HR: KARTU BPJS ====================
+function bpjsIsPdf(entry){ return !!entry && typeof entry==='object' && entry.type==='application/pdf'; }
+function bpjsDataUrl(entry){ if(!entry) return ''; return typeof entry==='string' ? entry : (entry.dataUrl||''); }
+function bpjsFileName(entry,fallback){ if(!entry || typeof entry==='string') return fallback||'kartu-bpjs'; return entry.name||fallback||'kartu-bpjs'; }
+function bpjsPreviewHtml(entry, cls){
+  if(!entry) return '';
+  if(bpjsIsPdf(entry)){
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center;background:var(--bg);${cls?cls:''}">
+      <div style="font-size:32px;margin-bottom:6px">📄</div>
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">${escapeHtml(bpjsFileName(entry))}</div>
+      <a class="btn btn-sm btn-primary" href="${bpjsDataUrl(entry)}" target="_blank" rel="noopener">👁️ Lihat PDF</a>
+    </div>`;
+  }
+  return `<img src="${bpjsDataUrl(entry)}" class="${cls||'bpjs-card-img'}">`;
+}
+
 function renderHrBpjsTable(){
   const box=el('hr-bpjs-list'); if(!box) return;
   const q=(gv('hr-bpjs-search')||'').trim().toLowerCase();
@@ -2076,8 +2091,9 @@ function renderHrBpjsTable(){
   box.innerHTML=list.map(e=>{
     const key=empKey(e.type,e.id);
     const has=!!HR.bpjs[key];
+    const isPdf=bpjsIsPdf(HR.bpjs[key]);
     return `<div class="hr-emp-card">
-      <div class="hr-emp-photo-ph">💳</div>
+      <div class="hr-emp-photo-ph">${isPdf?'📄':'💳'}</div>
       <div class="hr-emp-info">
         <div class="hr-emp-name">${escapeHtml(e.nama)}</div>
         <div class="hr-emp-meta">${escapeHtml(e.jabatan||'-')} &bull; ${TYPE_LABELS[e.type]}</div>
@@ -2096,10 +2112,10 @@ function openBpjsModal(empId,empType){
   const existing=HR.bpjs[key];
   el('mo-bpjs-title').textContent='Kartu BPJS — '+(emp?emp.nama:'');
   el('mo-bpjs-body').innerHTML=`
-    ${existing?`<img src="${existing}" class="bpjs-card-img" style="margin-bottom:14px">`:''}
+    ${existing?`<div style="margin-bottom:14px">${bpjsPreviewHtml(existing)}</div>`:''}
     <div class="izin-file-drop" id="bpjs-drop" onclick="document.getElementById('bpjs-file').click()">
-      <span id="bpjs-drop-label">Klik untuk pilih gambar kartu BPJS (maks. 3 MB)</span>
-      <input type="file" id="bpjs-file" accept="image/*" style="display:none" onchange="handleBpjsFile(event)">
+      <span id="bpjs-drop-label">Klik untuk pilih gambar atau PDF kartu BPJS (maks. 3 MB)</span>
+      <input type="file" id="bpjs-file" accept="image/*,application/pdf" style="display:none" onchange="handleBpjsFile(event)">
       <div id="bpjs-preview"></div>
     </div>`;
   el('mo-bpjs').classList.add('open');
@@ -2107,19 +2123,27 @@ function openBpjsModal(empId,empType){
 
 function handleBpjsFile(e){
   const f=e.target.files[0]; if(!f) return;
+  const isPdf=f.type==='application/pdf';
+  if(!isPdf && !f.type.startsWith('image/')){ alert('Format file harus gambar (JPG/PNG) atau PDF.'); e.target.value=''; return; }
   if(f.size>3*1024*1024){ alert('Ukuran file maks. 3 MB.'); e.target.value=''; return; }
   const r=new FileReader();
   r.onload=ev=>{
-    _bpjsFile=ev.target.result;
+    _bpjsFile={dataUrl:ev.target.result, type:f.type, name:f.name};
     el('bpjs-drop').classList.add('has-file');
     el('bpjs-drop-label').textContent='✓ '+f.name;
-    el('bpjs-preview').innerHTML=`<img src="${_bpjsFile}" style="max-width:100%;border-radius:6px;margin-top:8px">`;
+    if(isPdf){
+      el('bpjs-preview').innerHTML=`<div style="margin-top:8px;padding:12px;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px">📄</span><span style="font-size:12.5px;color:var(--text-muted)">${escapeHtml(f.name)}</span>
+      </div>`;
+    } else {
+      el('bpjs-preview').innerHTML=`<img src="${_bpjsFile.dataUrl}" style="max-width:100%;border-radius:6px;margin-top:8px">`;
+    }
   };
   r.readAsDataURL(f);
 }
 
 function saveBpjs(){
-  if(!_bpjsFile){ alert('Silakan pilih gambar kartu BPJS terlebih dahulu.'); return; }
+  if(!_bpjsFile){ alert('Silakan pilih gambar atau PDF kartu BPJS terlebih dahulu.'); return; }
   const key=empKey(_bpjsEmpType,_bpjsEmpId);
   HR.bpjs[key]=_bpjsFile;
   saveHrData().then(()=>{
@@ -2237,9 +2261,17 @@ function renderKpiEmpPage(){
 function renderBpjsEmpPage(){
   const box=el('ep-tab-content-bpjs'); if(!box) return;
   const {empId,empType}=_portalEmp;
-  const img=HR.bpjs[empKey(empType,empId)];
-  if(!img){ box.innerHTML='<div class="izin-empty">Kartu BPJS Ketenagakerjaan Anda belum diunggah oleh HRD.</div>'; return; }
-  box.innerHTML=`<div class="izin-form-card" style="text-align:center"><img src="${img}" class="bpjs-card-img"></div>`;
+  const entry=HR.bpjs[empKey(empType,empId)];
+  if(!entry){ box.innerHTML='<div class="izin-empty">Kartu BPJS Ketenagakerjaan Anda belum diunggah oleh HRD.</div>'; return; }
+  if(bpjsIsPdf(entry)){
+    box.innerHTML=`<div class="izin-form-card" style="text-align:center">
+      <div style="font-size:44px;margin-bottom:8px">📄</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">${escapeHtml(bpjsFileName(entry,'Kartu BPJS.pdf'))}</div>
+      <a class="btn btn-primary" href="${bpjsDataUrl(entry)}" target="_blank" rel="noopener" download="${escapeHtml(bpjsFileName(entry,'Kartu-BPJS.pdf'))}">👁️ Lihat / Unduh PDF</a>
+    </div>`;
+  } else {
+    box.innerHTML=`<div class="izin-form-card" style="text-align:center"><img src="${bpjsDataUrl(entry)}" class="bpjs-card-img"></div>`;
+  }
 }
 
 function renderTambahanEmpPage(){

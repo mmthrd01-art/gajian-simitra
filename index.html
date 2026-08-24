@@ -994,7 +994,8 @@ function saveState(){
   DB.ref('data').set({
     employees: S.employees,
     salaries:  S.salaries,
-    userAccounts: S.userAccounts
+    userAccounts: S.userAccounts,
+    kpiData: KPI_DATA
   }).then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>showSync('❌ Gagal simpan: '+e.message,false));
 }
@@ -1007,10 +1008,12 @@ function saveIzinState(){
     .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
 }
 
-// ── Tulis data KPI (capaian %, grade, nilai rupiah per periode) — terpisah, tapi ikut terjumlah otomatis ke perhitungan gaji
+// ── Tulis data KPI (capaian %, grade, nilai rupiah per periode) — disimpan di dalam node 'data' yang sudah
+// mendapat izin baca/tulis (bukan node baru), supaya tidak butuh perubahan Firebase Rules. Otomatis
+// terjumlah ke perhitungan gaji.
 function saveKpiState(){
   if(!_fbReady){console.warn('Firebase belum siap');return Promise.reject('offline');}
-  return DB.ref('kpi').set(KPI_DATA)
+  return DB.ref('data/kpiData').set(KPI_DATA)
     .then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
 }
@@ -1053,6 +1056,7 @@ function attachFirebaseListeners(){
       S.employees    = d.employees    || {nfc:[],fc:[],st:[]};
       S.salaries     = d.salaries     || {};
       S.userAccounts = d.userAccounts || [];
+      KPI_DATA       = (d.kpiData && typeof d.kpiData==='object') ? d.kpiData : {};
     }
     ['nfc','fc','st'].forEach(t=>{ if(!S.employees[t]) S.employees[t]=[]; });
     if(!S.userAccounts) S.userAccounts=[];
@@ -1085,7 +1089,10 @@ function attachFirebaseListeners(){
     if(auth&&auth.startsWith('emp:')){
       const accId=auth.split(':')[1];
       const acc=S.userAccounts.find(a=>a.id===accId&&a.aktif!==false);
-      if(acc&&_portalEmp) updateEPSalary();
+      if(acc&&_portalEmp){
+        if(_epTab==='gaji') updateEPSalary();
+        else if(_epTab==='kpi') renderKpiEmpPage();
+      }
     }
     showSync('✅ Data berhasil dimuat');
   }, err=>{
@@ -1101,26 +1108,6 @@ function attachFirebaseListeners(){
     const activePage = document.querySelector('.page.active');
     if(activePage && activePage.id==='page-izin-admin') renderIzinAdmin();
     if(document.getElementById('emp-portal').style.display==='block' && _epTab==='izin') renderIzinEmpPage();
-  });
-  // Data Nilai KPI (terpisah, tapi otomatis terjumlah ke perhitungan gaji & slip)
-  DB.ref('kpi').on('value', snap=>{
-    const d=snap.val();
-    KPI_DATA = d && typeof d==='object' ? d : {};
-    const activePage = document.querySelector('.page.active');
-    if(activePage && activePage.id==='page-kpi-admin') renderKpiAdmin();
-    // Muat ulang tampilan gaji/slip agar nilai KPI terjumlah otomatis
-    if(activePage){
-      const pid=activePage.id.replace('page-','');
-      if(pid==='gaji-nfc') renderGajiTable('nfc');
-      else if(pid==='gaji-fc') renderGajiTable('fc');
-      else if(pid==='gaji-st') renderGajiTable('st');
-      else if(pid==='dashboard') renderDashboard();
-      else if(pid==='rekap') renderRekap();
-    }
-    if(document.getElementById('emp-portal').style.display==='block' && _portalEmp){
-      if(_epTab==='gaji') updateEPSalary();
-      else if(_epTab==='kpi') renderKpiEmpPage();
-    }
   });
   // Data HR: biodata, top score, cuti, point pekerjaan, kartu BPJS, pendapatan lainnya (terpisah dari gaji & izin)
   DB.ref('hrdata').on('value', snap=>{

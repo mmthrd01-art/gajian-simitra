@@ -2267,7 +2267,10 @@ function renderBpjsEmpPage(){
     box.innerHTML=`<div class="izin-form-card" style="text-align:center">
       <div style="font-size:44px;margin-bottom:8px">📄</div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">${escapeHtml(bpjsFileName(entry,'Kartu BPJS.pdf'))}</div>
-      <a class="btn btn-primary" href="${bpjsDataUrl(entry)}" target="_blank" rel="noopener" download="${escapeHtml(bpjsFileName(entry,'Kartu-BPJS.pdf'))}">👁️ Lihat / Unduh PDF</a>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <a class="btn btn-primary" href="${bpjsDataUrl(entry)}" target="_blank" rel="noopener">👁️ Lihat PDF</a>
+        <a class="btn" href="${bpjsDataUrl(entry)}" download="${escapeHtml(bpjsFileName(entry,'Kartu-BPJS.pdf'))}">⬇️ Unduh PDF</a>
+      </div>
     </div>`;
   } else {
     box.innerHTML=`<div class="izin-form-card" style="text-align:center"><img src="${bpjsDataUrl(entry)}" class="bpjs-card-img"></div>`;

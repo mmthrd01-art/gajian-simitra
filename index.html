@@ -940,7 +940,14 @@ try{
 // ==================== CONSTANTS ====================
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const TYPE_LABELS = {nfc:'Tim Ops Non-Fix', fc:'Tim Ops Fix Cost', st:'Staff'};
-const HR_CREDS = {u:'Ghazali', p:'mmt12345'};
+const HR_CREDS = {u:'Ghazali', pHash:'ac4cd576bded3fe30e1c9e914bd9ee21233849016541cbbc1367251138bcc4ad'};
+// Hash password dengan SHA-256 (Web Crypto API) — supaya password TIDAK pernah tersimpan/terlihat
+// sebagai teks polos, baik di kode sumber maupun di database.
+async function sha256Hex(str){
+  const enc=new TextEncoder().encode(str);
+  const buf=await crypto.subtle.digest('SHA-256',enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 const IZIN_KATEGORI = ['Izin Sakit','Izin Melayat','Izin Menemani Keluarga Berobat','Izin Urgent Lainnya'];
 const HRD_WA_NUMBER_DEFAULT = '6282259979760';
 const STATUS_KELUARGA = ['Hidup','Meninggal'];
@@ -1298,38 +1305,57 @@ function switchRole(r){
   el('login-err').classList.remove('show');
 }
 
-function doLogin(){
+async function doLogin(){
   const u=gv('l-user').trim(), p=gv('l-pass');
   const err=el('login-err');
   err.classList.remove('show');
-  if(_loginRole==='hr'){
-    if(u===HR_CREDS.u && p===HR_CREDS.p){
-      sessionStorage.setItem('mmt_auth','admin');
-      el('login-page').style.display='none';
-      el('app-shell').style.display='block';
-      renderDashboard();
-      applyLogoUI();
-      updateIzinPendingDot();
-      setTimeout(updateMobHam, 100);
-    } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
-  } else {
-    if(!_fbReady){
-      // Data akun karyawan belum selesai dimuat dari server — JANGAN anggap
-      // ini "password salah". Beri tahu apa adanya supaya user tidak bingung
-      // kenapa tombolnya "tidak merespon".
-      err.textContent='Sedang menghubungkan ke server, mohon tunggu beberapa detik lalu coba lagi.';
-      err.classList.add('show');
-      return;
+  const btn=el('login-submit-btn');
+  if(btn) btn.disabled=true;
+  try{
+    if(_loginRole==='hr'){
+      const inputHash=await sha256Hex(p);
+      if(u===HR_CREDS.u && inputHash===HR_CREDS.pHash){
+        sessionStorage.setItem('mmt_auth','admin');
+        el('login-page').style.display='none';
+        el('app-shell').style.display='block';
+        renderDashboard();
+        applyLogoUI();
+        updateIzinPendingDot();
+        setTimeout(updateMobHam, 100);
+      } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
+    } else {
+      if(!_fbReady){
+        // Data akun karyawan belum selesai dimuat dari server — JANGAN anggap
+        // ini "password salah". Beri tahu apa adanya supaya user tidak bingung
+        // kenapa tombolnya "tidak merespon".
+        err.textContent='Sedang menghubungkan ke server, mohon tunggu beberapa detik lalu coba lagi.';
+        err.classList.add('show');
+        return;
+      }
+      const cand=S.userAccounts.find(a=>a.username===u && a.aktif!==false);
+      let ok=false;
+      if(cand){
+        const inputHash=await sha256Hex(p);
+        if(cand.passwordHash && inputHash===cand.passwordHash) ok=true;
+        // Dukungan mundur untuk akun lama yang passwordnya masih tersimpan polos (belum pernah
+        // dibuka-edit sejak fitur hash ini aktif). Begitu ok, otomatis migrasi diam-diam ke hash.
+        else if(!cand.passwordHash && cand.password && cand.password===p){
+          ok=true;
+          cand.passwordHash=inputHash; delete cand.password;
+          saveState();
+        }
+      }
+      if(ok){
+        sessionStorage.setItem('mmt_auth','emp:'+cand.id);
+        _portalEmp={empId:cand.empId, empType:cand.empType};
+        el('login-page').style.display='none';
+        el('emp-portal').style.display='block';
+        _epTab='gaji';
+        renderEmpPortal();
+      } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
     }
-    const acc=S.userAccounts.find(a=>a.username===u && a.password===p && a.aktif!==false);
-    if(acc){
-      sessionStorage.setItem('mmt_auth','emp:'+acc.id);
-      _portalEmp={empId:acc.empId, empType:acc.empType};
-      el('login-page').style.display='none';
-      el('emp-portal').style.display='block';
-      _epTab='gaji';
-      renderEmpPortal();
-    } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
+  } finally {
+    if(btn) btn.disabled=false;
   }
 }
 
@@ -3172,15 +3198,16 @@ function openUserModal(empId, empType){
   el('mo-user-body').innerHTML=`${empInfo}${empSel}
     <div class="fg2">
       <div class="fg"><label>Username</label><input type="text" id="um-user" value="${acc?.username||''}" placeholder="Buat username..."></div>
-      <div class="fg"><label>Password</label><input type="text" id="um-pass" value="${acc?.password||''}" placeholder="Buat password..."></div>
+      <div class="fg"><label>Password${acc?' (kosongkan jika tidak diganti)':''}</label><input type="text" id="um-pass" value="" placeholder="${acc?'Kosongkan = password lama tetap dipakai':'Buat password...'}"></div>
     </div>
     <div class="fg" style="margin-top:12px"><label>Status Akun</label>
       <select id="um-aktif"><option value="1" ${acc?.aktif!==false?'selected':''}>Aktif</option><option value="0" ${acc?.aktif===false?'selected':''}>Nonaktif</option></select>
-    </div>`;
+    </div>
+    <div class="info-box" style="margin-top:12px">🔒 &nbsp;Password disimpan dalam bentuk terenkripsi (hash), tidak pernah tersimpan atau ditampilkan sebagai teks biasa.</div>`;
   el('mo-user').classList.add('open');
 }
 
-function saveUserAcc(){
+async function saveUserAcc(){
   let empId=gv('um-empid'), empType=gv('um-emptype');
   if(!empId){
     const sel=gv('um-empsel');
@@ -3190,14 +3217,21 @@ function saveUserAcc(){
   const username=gv('um-user').trim(), password=gv('um-pass');
   const aktif=gv('um-aktif')==='1';
   if(!username){ alert('Nama pengguna tidak boleh kosong.'); return; }
-  if(password.length<4){ alert('Kata sandi minimal 4 karakter.'); return; }
+  if(!_userAccId && password.length<4){ alert('Kata sandi minimal 4 karakter.'); return; }
+  if(password && password.length>0 && password.length<4){ alert('Kata sandi minimal 4 karakter.'); return; }
   const dup=S.userAccounts.find(a=>a.username===username&&a.id!==_userAccId);
   if(dup){ alert('Nama pengguna sudah dipakai. Pilih nama lain.'); return; }
   if(_userAccId){
     const i=S.userAccounts.findIndex(a=>a.id===_userAccId);
-    if(i>-1) S.userAccounts[i]={...S.userAccounts[i],username,password,aktif};
+    if(i>-1){
+      const old=S.userAccounts[i];
+      // Selalu migrasi ke passwordHash setiap kali disimpan, meski password tidak diubah
+      // (menghapus jejak password lama yang mungkin masih tersimpan polos).
+      const passwordHash = password ? await sha256Hex(password) : (old.passwordHash || (old.password?await sha256Hex(old.password):''));
+      S.userAccounts[i]={id:old.id,empId,empType,username,passwordHash,aktif};
+    }
   } else {
-    S.userAccounts.push({id:uid(),empId,empType,username,password,aktif});
+    S.userAccounts.push({id:uid(),empId,empType,username,passwordHash:await sha256Hex(password),aktif});
   }
   saveState(); closeM('mo-user'); renderUserTable();
   alert('✅ Akun berhasil disimpan!');
@@ -3241,10 +3275,10 @@ function applySettingsUI(){
   renderSlipPreview();
 }
 
-function handleLogo(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();r.onload=ev=>{CFG.logo=ev.target.result;showLogoImg(ev.target.result);saveCFG();applyLogoUI();renderSlipPreview();};r.readAsDataURL(f); }
+function handleLogo(e){ const f=e.target.files[0]; if(!f) return; if(f.size>1.5*1024*1024){ alert('Ukuran logo maks. 1.5 MB.'); e.target.value=''; return; } const r=new FileReader();r.onload=ev=>{CFG.logo=ev.target.result;showLogoImg(ev.target.result);saveCFG();applyLogoUI();renderSlipPreview();};r.readAsDataURL(f); }
 function showLogoImg(src){ const i=el('logo-img'),p=el('logo-ph'); if(i){i.src=src;i.style.display='block';}if(p)p.style.display='none'; }
 function clearLogo(){ CFG.logo=null;const i=el('logo-img'),p=el('logo-ph');if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex';el('logo-file').value='';saveCFG();applyLogoUI();renderSlipPreview(); }
-function handleTtd(e){ const f=e.target.files[0]; if(!f) return; const r=new FileReader();r.onload=ev=>{CFG.ttd=ev.target.result;showTtdImg(ev.target.result);saveCFG();renderSlipPreview();};r.readAsDataURL(f); }
+function handleTtd(e){ const f=e.target.files[0]; if(!f) return; if(f.size>1.5*1024*1024){ alert('Ukuran tanda tangan maks. 1.5 MB.'); e.target.value=''; return; } const r=new FileReader();r.onload=ev=>{CFG.ttd=ev.target.result;showTtdImg(ev.target.result);saveCFG();renderSlipPreview();};r.readAsDataURL(f); }
 function showTtdImg(src){ const i=el('ttd-img'),p=el('ttd-ph');if(i){i.src=src;i.style.display='block';}if(p)p.style.display='none'; }
 function clearTtd(){ CFG.ttd=null;const i=el('ttd-img'),p=el('ttd-ph');if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex';el('ttd-file').value='';saveCFG();renderSlipPreview(); }
 

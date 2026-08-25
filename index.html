@@ -197,7 +197,7 @@ tbody tr:hover{background:#FAFCFE}
 .slip-btn:hover{background:var(--warning)}
 
 /* MANAGE USERS */
-.info-box{background:#E3F0FD;border:1px solid #93C5FD;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:13px;color:#1565C0}
+.info-box{background:#E3F0FD;border:1px solid #93C5FD;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1565C0;line-height:1.6}
 
 /* REKAP */
 .rekap-bar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
@@ -894,6 +894,27 @@ try{
     <div class="mhd"><h2 id="mo-profil-title">Biodata Karyawan</h2><button class="btn btn-sm" onclick="closeM('mo-profil')">✕</button></div>
     <div class="mbd" id="mo-profil-body"></div>
     <div class="mft"><button class="btn" onclick="closeM('mo-profil')">Batal</button><button class="btn btn-primary" onclick="saveProfil()">💾 Simpan Biodata</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL CROP FOTO ===== -->
+<div class="mo" id="mo-crop" style="z-index:600">
+  <div class="mbox" style="width:400px">
+    <div class="mhd"><h2>Atur Foto</h2><button class="btn btn-sm" onclick="closeCropModal()">✕</button></div>
+    <div class="mbd" style="text-align:center">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Geser foto untuk mengatur posisi, gunakan slider untuk memperbesar/perkecil</div>
+      <div id="crop-canvas-wrap" style="width:280px;height:280px;margin:0 auto;border-radius:50%;overflow:hidden;border:3px solid var(--border);touch-action:none;cursor:grab;background:#F0F4F8"
+        onmousedown="cropPointerDown(event)" onmousemove="cropPointerMove(event)" onmouseup="cropPointerUp(event)" onmouseleave="cropPointerUp(event)"
+        ontouchstart="cropPointerDown(event)" ontouchmove="cropPointerMove(event)" ontouchend="cropPointerUp(event)">
+        <canvas id="crop-canvas" width="280" height="280" style="display:block"></canvas>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:16px;padding:0 10px">
+        <span style="font-size:16px">🔍</span>
+        <input type="range" id="crop-zoom" min="0" max="100" value="0" style="flex:1" oninput="onCropZoom()">
+        <span style="font-size:18px">🔍</span>
+      </div>
+    </div>
+    <div class="mft"><button class="btn" onclick="closeCropModal()">Batal</button><button class="btn btn-primary" onclick="confirmCrop()">✅ Gunakan Foto</button></div>
   </div>
 </div>
 
@@ -1869,11 +1890,91 @@ function handleProfilFoto(e){
   const f=e.target.files[0]; if(!f) return;
   if(f.size>2*1024*1024){ alert('Ukuran foto maks. 2 MB.'); e.target.value=''; return; }
   const r=new FileReader();
-  r.onload=ev=>{
-    _profilFoto=ev.target.result;
-    el('pf-photo-wrap').innerHTML=`<img id="pf-photo-img" src="${_profilFoto}"><input type="file" id="pf-photo-file" accept="image/*" style="display:none" onchange="handleProfilFoto(event)">`;
-  };
+  r.onload=ev=>{ openCropModal(ev.target.result); e.target.value=''; };
   r.readAsDataURL(f);
+}
+
+// ==================== CROP FOTO ====================
+let _cropImg=null, _cropScale=1, _cropMinScale=1, _cropMaxScale=4, _cropOffX=0, _cropOffY=0;
+let _cropDragging=false, _cropLastX=0, _cropLastY=0;
+const CROP_SIZE=280, CROP_OUT=480;
+
+function openCropModal(dataUrl){
+  const img=new Image();
+  img.onload=()=>{
+    _cropImg=img;
+    _cropMinScale=Math.max(CROP_SIZE/img.width, CROP_SIZE/img.height);
+    _cropMaxScale=_cropMinScale*4;
+    _cropScale=_cropMinScale;
+    _cropOffX=0; _cropOffY=0;
+    el('crop-zoom').value=0;
+    drawCrop();
+    el('mo-crop').classList.add('open');
+  };
+  img.src=dataUrl;
+}
+
+function closeCropModal(){
+  el('mo-crop').classList.remove('open');
+  _cropImg=null;
+}
+
+function clampCropOffset(){
+  const w=_cropImg.width*_cropScale, h=_cropImg.height*_cropScale;
+  const maxX=Math.max(0,(w-CROP_SIZE)/2), maxY=Math.max(0,(h-CROP_SIZE)/2);
+  _cropOffX=Math.max(-maxX,Math.min(maxX,_cropOffX));
+  _cropOffY=Math.max(-maxY,Math.min(maxY,_cropOffY));
+}
+
+function drawCrop(){
+  if(!_cropImg) return;
+  const cv=el('crop-canvas'); const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,CROP_SIZE,CROP_SIZE);
+  clampCropOffset();
+  const w=_cropImg.width*_cropScale, h=_cropImg.height*_cropScale;
+  const x=(CROP_SIZE-w)/2+_cropOffX, y=(CROP_SIZE-h)/2+_cropOffY;
+  ctx.drawImage(_cropImg,x,y,w,h);
+}
+
+function onCropZoom(){
+  const t=parseFloat(gv('crop-zoom'))/100;
+  _cropScale=_cropMinScale+(_cropMaxScale-_cropMinScale)*t;
+  drawCrop();
+}
+
+function cropPointerDown(e){
+  _cropDragging=true;
+  const p=e.touches?e.touches[0]:e;
+  _cropLastX=p.clientX; _cropLastY=p.clientY;
+  el('crop-canvas-wrap').style.cursor='grabbing';
+}
+function cropPointerMove(e){
+  if(!_cropDragging) return;
+  e.preventDefault();
+  const p=e.touches?e.touches[0]:e;
+  _cropOffX+=(p.clientX-_cropLastX);
+  _cropOffY+=(p.clientY-_cropLastY);
+  _cropLastX=p.clientX; _cropLastY=p.clientY;
+  drawCrop();
+}
+function cropPointerUp(){
+  _cropDragging=false;
+  const w=el('crop-canvas-wrap'); if(w) w.style.cursor='grab';
+}
+
+function confirmCrop(){
+  if(!_cropImg) return;
+  const out=document.createElement('canvas');
+  out.width=CROP_OUT; out.height=CROP_OUT;
+  const ctx=out.getContext('2d');
+  const scaleRatio=CROP_OUT/CROP_SIZE;
+  const w=_cropImg.width*_cropScale*scaleRatio, h=_cropImg.height*_cropScale*scaleRatio;
+  const x=(CROP_OUT-w)/2+_cropOffX*scaleRatio, y=(CROP_OUT-h)/2+_cropOffY*scaleRatio;
+  ctx.drawImage(_cropImg,x,y,w,h);
+  _profilFoto=out.toDataURL('image/jpeg',0.9);
+  const wrap=el('pf-photo-wrap');
+  if(wrap) wrap.innerHTML=`<img id="pf-photo-img" src="${_profilFoto}"><input type="file" id="pf-photo-file" accept="image/*" style="display:none" onchange="handleProfilFoto(event)">`;
+  closeCropModal();
 }
 
 function saveProfil(){

@@ -508,6 +508,7 @@ try{
     <div class="sb-sec">
       <div class="sb-sec-title">Pengaturan</div>
       <button class="sb-btn" onclick="showPage('users',this)"><span class="sb-icon">🔑</span>Kelola Akun Karyawan</button>
+      <button class="sb-btn" onclick="showPage('login-logs',this)"><span class="sb-icon">🛡️</span>Aktivitas Login<span id="login-anomaly-dot" style="display:none;margin-left:auto;background:var(--danger);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;font-weight:700"></span></button>
       <button class="sb-btn" onclick="showPage('settings',this)"><span class="sb-icon">⚙️</span>Logo &amp; Tanda Tangan</button>
     </div>
     <div class="sb-bottom">
@@ -743,9 +744,24 @@ try{
         <button class="btn btn-primary" onclick="openUserModal(null,null)">+ Buat Akun Baru</button>
       </div>
       <div class="card"><table>
-        <thead><tr><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th>Username</th><th>Status</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th>Username</th><th>Status</th><th>Perangkat</th><th>Aksi</th></tr></thead>
         <tbody id="user-table"></tbody>
       </table></div>
+    </div>
+
+    <!-- AKTIVITAS LOGIN -->
+    <div id="page-login-logs" class="page">
+      <div class="ph"><h1>Aktivitas Login Karyawan</h1><p>Riwayat login &amp; deteksi perangkat baru per akun karyawan</p></div>
+      <div class="stats-grid" id="login-logs-stats"></div>
+      <div class="rekap-bar">
+        <label>Filter:</label>
+        <select id="ll-filter" onchange="renderLoginLogs()">
+          <option value="all">Semua Aktivitas</option>
+          <option value="anomali">⚠️ Hanya Perangkat Baru</option>
+        </select>
+        <input type="text" class="search-box" id="ll-search" placeholder="🔍 Cari nama karyawan..." oninput="renderLoginLogs()" style="max-width:220px">
+      </div>
+      <div id="login-logs-list"></div>
     </div>
 
     <!-- SETTINGS -->
@@ -980,7 +996,8 @@ let S = {
   employees: {nfc:[], fc:[], st:[]},
   salaries: {},
   userAccounts: [],
-  izinRequests: []
+  izinRequests: [],
+  loginLogs: []
 };
 let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:''};
 let HR = { profil:{}, topScore:[], cuti:[], point:[], bpjs:{}, tambahan:[] };
@@ -1000,6 +1017,59 @@ let _lastIzinSubmit=null;
 let _profilEmpId=null, _profilEmpType=null, _profilFoto=null;
 let _hrType=null, _hrItemId=null;
 let _bpjsEmpId=null, _bpjsEmpType=null, _bpjsFile=null;
+
+// ==================== DEVICE / LOGIN ANOMALY HELPERS ====================
+// Normalisasi UA: hapus nomor versi supaya update browser otomatis
+// tidak dianggap "perangkat baru" terus-menerus.
+function normalizeUA(ua){ return (ua||'').replace(/\/[\d.]+/g,'/x'); }
+
+async function getDeviceFingerprint(){
+  const raw=[
+    normalizeUA(navigator.userAgent),
+    navigator.platform||'',
+    navigator.language||'',
+    screen.width+'x'+screen.height+'x'+(screen.colorDepth||''),
+    Intl.DateTimeFormat().resolvedOptions().timeZone||'',
+    navigator.hardwareConcurrency||''
+  ].join('|');
+  return await sha256Hex(raw);
+}
+
+async function getClientIP(){
+  try{
+    const r=await fetch('https://api.ipify.org?format=json');
+    const d=await r.json();
+    return d.ip||null;
+  }catch(e){ return null; }
+}
+
+function parseUA(ua){
+  if(!ua) return {browser:'-',os:'-'};
+  let browser='Browser lain';
+  if(/Edg\//.test(ua)) browser='Edge';
+  else if(/Chrome\//.test(ua) && !/OPR|Edg/.test(ua)) browser='Chrome';
+  else if(/Firefox\//.test(ua)) browser='Firefox';
+  else if(/Safari\//.test(ua) && !/Chrome/.test(ua)) browser='Safari';
+  else if(/OPR\//.test(ua)) browser='Opera';
+  let os='OS lain';
+  if(/Windows/.test(ua)) os='Windows';
+  else if(/Android/.test(ua)) os='Android';
+  else if(/iPhone|iPad|iOS/.test(ua)) os='iOS';
+  else if(/Mac OS/.test(ua)) os='macOS';
+  else if(/Linux/.test(ua)) os='Linux';
+  return {browser,os};
+}
+
+function fmtLoginTs(ts){
+  return new Date(ts).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function accDeviceInfo(accId){
+  const logs=(S.loginLogs||[]).filter(r=>r.accId===accId);
+  const distinctFp=[...new Set(logs.map(r=>r.fp))];
+  const pending=logs.filter(r=>r.isNewDevice&&!r.acked).length;
+  return {count:distinctFp.length, pending, total:logs.length};
+}
 
 // ==================== FIREBASE PERSIST ====================
 // Indikator sinkronisasi
@@ -1034,6 +1104,20 @@ function saveIzinState(){
   return DB.ref('izin').set(S.izinRequests)
     .then(()=>showSync('✅ Tersimpan ke cloud'))
     .catch(e=>{showSync('❌ Gagal simpan: '+e.message,false); throw e;});
+}
+
+// ── Tulis riwayat aktivitas login / deteksi perangkat baru
+function saveLoginLogs(){
+  if(!_fbReady){console.warn('Firebase belum siap');return Promise.reject('offline');}
+  return DB.ref('loginLogs').set(S.loginLogs)
+    .catch(e=>console.error('saveLoginLogs',e));
+}
+
+function updateLoginAnomalyDot(){
+  const dot=el('login-anomaly-dot');
+  if(!dot) return;
+  const n=(S.loginLogs||[]).filter(r=>r.isNewDevice && !r.acked).length;
+  if(n>0){ dot.style.display='inline-block'; dot.textContent=n; } else { dot.style.display='none'; }
 }
 
 // ── Tulis data KPI (capaian %, grade, nilai rupiah per periode) — disimpan di dalam node 'data' yang sudah
@@ -1102,6 +1186,7 @@ function attachFirebaseListeners(){
       else if(pid==='kpi-admin') renderKpiAdmin();
       else if(pid==='rekap')    renderRekap();
       else if(pid==='users')    renderUserTable();
+      else if(pid==='login-logs') renderLoginLogs();
       else if(pid==='izin-admin') renderIzinAdmin();
       else if(pid==='hr-profil') renderHrProfilTable();
       else if(pid==='hr-topscore') renderHrTopScoreTable();
@@ -1136,6 +1221,15 @@ function attachFirebaseListeners(){
     const activePage = document.querySelector('.page.active');
     if(activePage && activePage.id==='page-izin-admin') renderIzinAdmin();
     if(document.getElementById('emp-portal').style.display==='block' && _epTab==='izin') renderIzinEmpPage();
+  });
+  // Riwayat aktivitas login / deteksi perangkat baru
+  DB.ref('loginLogs').on('value', snap=>{
+    const d = snap.val();
+    S.loginLogs = Array.isArray(d) ? d.filter(Boolean) : (d ? Object.values(d) : []);
+    updateLoginAnomalyDot();
+    const activePage = document.querySelector('.page.active');
+    if(activePage && activePage.id==='page-login-logs') renderLoginLogs();
+    if(activePage && activePage.id==='page-users') renderUserTable();
   });
   // Data HR: biodata, top score, cuti, point pekerjaan, kartu BPJS, pendapatan lainnya (terpisah dari gaji & izin)
   DB.ref('hrdata').on('value', snap=>{
@@ -1285,6 +1379,7 @@ function showPage(id, btn){
   else if(id==='kpi-admin') renderKpiAdmin();
   else if(id==='rekap') renderRekap();
   else if(id==='users') renderUserTable();
+  else if(id==='login-logs') renderLoginLogs();
   else if(id==='izin-admin') renderIzinAdmin();
   else if(id==='hr-profil') renderHrProfilTable();
   else if(id==='hr-topscore') renderHrTopScoreTable();
@@ -1321,6 +1416,7 @@ async function doLogin(){
         renderDashboard();
         applyLogoUI();
         updateIzinPendingDot();
+        updateLoginAnomalyDot();
         setTimeout(updateMobHam, 100);
       } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
     } else {
@@ -1346,6 +1442,26 @@ async function doLogin(){
         }
       }
       if(ok){
+        // ── Deteksi perangkat baru & catat aktivitas login ──
+        try{
+          const fp = await getDeviceFingerprint();
+          const priorFp = S.loginLogs.filter(r=>r.accId===cand.id).map(r=>r.fp);
+          const isNew = priorFp.length>0 && !priorFp.includes(fp);
+          const empNow = S.employees[cand.empType]?.find(e=>e.id===cand.empId);
+          getClientIP().then(ip=>{
+            const logEntry={
+              id: uid(), accId: cand.id, empId: cand.empId, empType: cand.empType,
+              nama: empNow?empNow.nama:cand.username,
+              ts: Date.now(), ua: navigator.userAgent, platform: navigator.platform||'',
+              screen: screen.width+'x'+screen.height, lang: navigator.language||'',
+              tz: Intl.DateTimeFormat().resolvedOptions().timeZone||'',
+              fp, isNewDevice: isNew, ip: ip||null, acked:false
+            };
+            S.loginLogs.push(logEntry);
+            saveLoginLogs();
+          });
+        }catch(e){ console.warn('Gagal mencatat aktivitas login', e); }
+
         sessionStorage.setItem('mmt_auth','emp:'+cand.id);
         _portalEmp={empId:cand.empId, empType:cand.empType};
         el('login-page').style.display='none';
@@ -3154,19 +3270,29 @@ function renderUserTable(){
       allEmps.push({emp,type,acc});
     });
   });
-  if(!allEmps.length){ tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px">Belum ada data karyawan.</td></tr>'; return; }
-  tbody.innerHTML=allEmps.map(({emp,type,acc})=>`<tr>
+  if(!allEmps.length){ tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px">Belum ada data karyawan.</td></tr>'; return; }
+  tbody.innerHTML=allEmps.map(({emp,type,acc})=>{
+    let deviceCell='—';
+    if(acc){
+      const di=accDeviceInfo(acc.id);
+      deviceCell = di.total
+        ? `${di.count} perangkat${di.pending>0?` <span class="badge badge-d" style="margin-left:4px">⚠️ ${di.pending} baru</span>`:''}`
+        : '<span style="color:var(--text-muted);font-size:12px">Belum pernah login</span>';
+    }
+    return `<tr>
     <td><b>${emp.nama}</b></td>
     <td style="font-size:12px;color:var(--text-muted)">${emp.nik||''}</td>
     <td>${emp.jabatan||''}</td>
     <td><span class="badge badge-i">${TYPE_LABELS[type]}</span></td>
     <td>${acc?`<code style="background:#F0F4F8;padding:2px 6px;border-radius:4px;font-size:12px">${acc.username}</code>`:'<span style="color:var(--text-muted);font-size:12px">—</span>'}</td>
     <td>${acc?(acc.aktif!==false?'<span class="badge badge-s">Aktif</span>':'<span class="badge badge-d">Nonaktif</span>'):'<span class="badge badge-w">Belum dibuat</span>'}</td>
+    <td>${deviceCell}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-sm btn-primary" onclick="openUserModal('${emp.id}','${type}')">${acc?'✏️ Edit':'➕ Buat Akun'}</button>
       ${acc?`<button class="btn btn-sm btn-danger" onclick="delUserAcc('${acc.id}')">🗑️</button>`:''}
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 function filterUsers(q){
@@ -3241,6 +3367,53 @@ function delUserAcc(id){
   if(!confirm('Hapus akun ini?')) return;
   S.userAccounts=S.userAccounts.filter(a=>a.id!==id);
   saveState(); renderUserTable();
+}
+
+// ==================== AKTIVITAS LOGIN / DETEKSI PERANGKAT BARU ====================
+function ackLoginLog(id){
+  const i=S.loginLogs.findIndex(r=>r.id===id);
+  if(i>-1){
+    S.loginLogs[i].acked=true;
+    saveLoginLogs().then(()=>{ renderLoginLogs(); updateLoginAnomalyDot(); showSync('✅ Ditandai sudah ditinjau'); });
+  }
+}
+
+function renderLoginLogs(){
+  const box=el('login-logs-list'); if(!box) return;
+  const filter=gv('ll-filter')||'all';
+  const q=(gv('ll-search')||'').trim().toLowerCase();
+  let rows=(S.loginLogs||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(filter==='anomali') rows=rows.filter(r=>r.isNewDevice);
+  if(q) rows=rows.filter(r=>(r.nama||'').toLowerCase().includes(q));
+
+  const totalLogin=S.loginLogs.length;
+  const totalAnomali=S.loginLogs.filter(r=>r.isNewDevice).length;
+  const belumDitinjau=S.loginLogs.filter(r=>r.isNewDevice&&!r.acked).length;
+  el('login-logs-stats').innerHTML=`
+    <div class="sc i"><div class="sc-label">Total Aktivitas Login</div><div class="sc-val">${totalLogin}</div><div class="sc-sub">Seluruh riwayat</div></div>
+    <div class="sc a"><div class="sc-label">Perangkat Baru Terdeteksi</div><div class="sc-val">${totalAnomali}</div><div class="sc-sub">Login dari perangkat berbeda</div></div>
+    <div class="sc d"><div class="sc-label">Belum Ditinjau</div><div class="sc-val">${belumDitinjau}</div><div class="sc-sub">Perlu perhatian admin</div></div>`;
+
+  if(!rows.length){ box.innerHTML='<div class="izin-empty">Tidak ada aktivitas login yang cocok.</div>'; return; }
+
+  box.innerHTML=rows.map(r=>{
+    const {browser,os}=parseUA(r.ua);
+    const highlight=(r.isNewDevice && !r.acked);
+    return `<div class="izin-card-item" style="${highlight?'border-left:4px solid var(--danger)':''}">
+      <div class="izin-card-top">
+        <div>
+          <span class="izin-card-name">${escapeHtml(r.nama||'-')}</span>
+          ${r.isNewDevice?'<span class="badge badge-d" style="margin-left:8px">⚠️ Perangkat Baru</span>':'<span class="badge badge-s" style="margin-left:8px">✓ Perangkat Dikenal</span>'}
+        </div>
+        <div class="izin-card-meta">${fmtLoginTs(r.ts)}</div>
+      </div>
+      <div class="izin-card-desc">
+        🖥️ ${browser} &bull; ${os} &bull; Layar ${escapeHtml(r.screen||'-')}<br>
+        🌐 IP: ${escapeHtml(r.ip||'Tidak diketahui')} &bull; Zona waktu: ${escapeHtml(r.tz||'-')}
+      </div>
+      ${highlight?`<button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="ackLoginLog('${r.id}')">✅ Tandai Sudah Ditinjau</button>`:''}
+    </div>`;
+  }).join('');
 }
 
 // ==================== SETTINGS ====================

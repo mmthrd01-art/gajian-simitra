@@ -136,6 +136,10 @@ tbody tr:hover{background:#FAFCFE}
 .sign-line{border-bottom:1px solid var(--text);margin:2px auto 6px;width:80%}
 .sign-name{font-weight:700}.sign-role{color:var(--text-muted);font-size:10.5px}
 .slip-foot{text-align:center;font-size:9.5px;color:var(--text-muted);margin-top:18px;padding-top:10px;border-top:1px dashed var(--border)}
+.slip-note{margin-top:14px;padding:9px 12px;background:#FEF3DC;border:1px solid #F4A820;border-left-width:4px;border-radius:7px;font-size:10.5px;line-height:1.5;color:#7A4A00;white-space:pre-line}
+.rahasia-box{background:#fff;border-radius:14px;width:440px;max-width:94vw;margin:auto;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.rahasia-hd{background:var(--danger);color:#fff;padding:14px 20px;font-weight:700;font-size:15px}
+.rahasia-bd{padding:20px;font-size:14px;line-height:1.7;white-space:pre-line}
 
 /* STATS CHART */
 .stat-tab-nav{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
@@ -744,7 +748,7 @@ try{
         <button class="btn btn-primary" onclick="openUserModal(null,null)">+ Buat Akun Baru</button>
       </div>
       <div class="card"><table>
-        <thead><tr><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th>Username</th><th>Status</th><th>Perangkat</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Nama Karyawan</th><th>NIK</th><th>Jabatan</th><th>Kategori</th><th>Username</th><th>Status</th><th>Perangkat</th><th>Sandi Diubah</th><th>Aksi</th></tr></thead>
         <tbody id="user-table"></tbody>
       </table></div>
     </div>
@@ -822,6 +826,14 @@ try{
             <input type="text" id="set-wa-hrd" placeholder="cth. 082259979760" oninput="saveSettings()">
           </div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Nomor aktif saat ini: <b id="set-wa-preview">-</b></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-title">🔒 Catatan Kerahasiaan Gaji</span></div>
+          <div class="info-box" style="margin-bottom:12px">ℹ️ &nbsp;Pesan ini muncul pertama kali saat karyawan login dan otomatis tercantum di setiap slip gaji. Kosongkan untuk memakai teks bawaan.</div>
+          <div class="fg">
+            <label>Isi Catatan</label>
+            <textarea id="set-catatan-rahasia" rows="5" oninput="saveSettings()"></textarea>
+          </div>
         </div>
       </div>
     </div>
@@ -952,6 +964,15 @@ try{
   </div>
 </div>
 
+<!-- ===== POPUP CATATAN RAHASIA GAJI ===== -->
+<div class="mo" id="mo-rahasia" style="z-index:3000;align-items:center">
+  <div class="rahasia-box">
+    <div class="rahasia-hd">⚠️ Catatan Penting</div>
+    <div class="rahasia-bd" id="rahasia-text"></div>
+    <div class="mft"><button class="btn btn-primary" onclick="closeM('mo-rahasia')">Saya Mengerti</button></div>
+  </div>
+</div>
+
 <script>
 // ==================== CONSTANTS ====================
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -966,6 +987,12 @@ async function sha256Hex(str){
 }
 const IZIN_KATEGORI = ['Izin Sakit','Izin Melayat','Izin Menemani Keluarga Berobat','Izin Urgent Lainnya'];
 const HRD_WA_NUMBER_DEFAULT = '6282259979760';
+const DEFAULT_CATATAN_RAHASIA = 'Gaji bersifat RAHASIA dan tidak boleh diperlihatkan / bocor kepada karyawan lain.\nJika dengan sengaja gaji Anda diceritakan / diperlihatkan kepada karyawan lain, maka akan mendapatkan sanksi sesuai ketentuan yang berlaku.';
+function getCatatanRahasia(){ return (CFG.catatanRahasia||'').trim() || DEFAULT_CATATAN_RAHASIA; }
+function showRahasiaNotice(){
+  el('rahasia-text').textContent = getCatatanRahasia();
+  el('mo-rahasia').classList.add('open');
+}
 const STATUS_KELUARGA = ['Hidup','Meninggal'];
 const STATUS_NIKAH = ['Belum Menikah','Sudah Menikah'];
 const SEBAGAI_PENJAMIN = ['Istri','Suami','Ibu','Bapak','Kakak','Adik','Anak','Kakek','Nenek','Tante','Paman','Sepupu'];
@@ -999,7 +1026,7 @@ let S = {
   izinRequests: [],
   loginLogs: []
 };
-let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:''};
+let CFG = {logo:null, ttd:null, hrdNama:'', nama:'CV. MITRA MULTI TEKNIK', alamat:'', kontak:'', approver1:'', approver2:'', waHrd:'', catatanRahasia:''};
 let HR = { profil:{}, topScore:[], cuti:[], point:[], bpjs:{}, tambahan:[] };
 let KPI_DATA = {}; // key: `${type}_${empId}_${mon}_${yr}` -> {capaian, grade, nilai}
 
@@ -1149,7 +1176,8 @@ function saveCFG(){
     kontak:  CFG.kontak||'',
     approver1: CFG.approver1||'',
     approver2: CFG.approver2||'',
-    waHrd:   CFG.waHrd||''
+    waHrd:   CFG.waHrd||'',
+    catatanRahasia: CFG.catatanRahasia||''
   }).catch(e=>console.error('saveCFG txt',e));
   // Logo & TTD sebagai base64 (hanya jika ada)
   if(CFG.logo)  DB.ref('cfg_img/logo').set(CFG.logo).catch(()=>{});
@@ -1259,7 +1287,7 @@ function attachFirebaseListeners(){
   // CFG teks
   DB.ref('cfg').on('value', snap=>{
     const d=snap.val();
-    if(d) Object.assign(CFG,{hrdNama:d.hrdNama||'',nama:d.nama||'CV. MITRA MULTI TEKNIK',alamat:d.alamat||'',kontak:d.kontak||'',approver1:d.approver1||'',approver2:d.approver2||'',waHrd:d.waHrd||''});
+    if(d) Object.assign(CFG,{hrdNama:d.hrdNama||'',nama:d.nama||'CV. MITRA MULTI TEKNIK',alamat:d.alamat||'',kontak:d.kontak||'',approver1:d.approver1||'',approver2:d.approver2||'',waHrd:d.waHrd||'',catatanRahasia:d.catatanRahasia||''});
     applyLogoUI();
     renderSlipPreview();
     const lc=el('ll-co'); if(lc&&CFG.nama) lc.textContent=CFG.nama;
@@ -1468,6 +1496,7 @@ async function doLogin(){
         el('emp-portal').style.display='block';
         _epTab='gaji';
         renderEmpPortal();
+        showRahasiaNotice();
       } else { err.textContent='Username atau kata sandi salah.'; err.classList.add('show'); el('l-pass').value=''; }
     }
   } finally {
@@ -2984,6 +3013,7 @@ function openSlip(type,empId,mon,yr){
           <div class="sign-img"></div><div class="sign-line"></div>
           <div class="sign-name">${emp.nama}</div><div class="sign-role">${emp.jabatan||''}</div></div>
       </div>
+      <div class="slip-note">⚠️ <b>Catatan:</b> ${escapeHtml(getCatatanRahasia())}</div>
       <div class="slip-foot">Slip gaji ini dihasilkan otomatis oleh Sistem Penggajian ${co} dan sah tanpa cap basah.</div>
     </div></div></div>`;
   el('mo-slip').classList.add('open');
@@ -3015,6 +3045,7 @@ function printSlip(){
   .sign-img img{max-height:44px;max-width:110px;object-fit:contain}.sign-line{border-bottom:1px solid #1A2332;margin:2px auto 5px;width:80%}
   .sign-name{font-weight:700}.sign-role{color:#5A6A7A;font-size:10px}
   .slip-foot{text-align:center;font-size:9px;color:#5A6A7A;margin-top:16px;padding-top:8px;border-top:1px dashed #D1DCE8}
+  .slip-note{margin-top:12px;padding:8px 11px;background:#FEF3DC;border:1px solid #F4A820;border-left-width:4px;border-radius:6px;font-size:10px;line-height:1.5;color:#7A4A00;white-space:pre-line}
   ${pg}</style></head><body>${content}<script>window.onload=()=>window.print()<\/script></body></html>`);
   w.document.close();
 }
@@ -3270,14 +3301,17 @@ function renderUserTable(){
       allEmps.push({emp,type,acc});
     });
   });
-  if(!allEmps.length){ tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px">Belum ada data karyawan.</td></tr>'; return; }
+  if(!allEmps.length){ tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:30px">Belum ada data karyawan.</td></tr>'; return; }
   tbody.innerHTML=allEmps.map(({emp,type,acc})=>{
-    let deviceCell='—';
+    let deviceCell='—', pwCell='—';
     if(acc){
       const di=accDeviceInfo(acc.id);
       deviceCell = di.total
         ? `${di.count} perangkat${di.pending>0?` <span class="badge badge-d" style="margin-left:4px">⚠️ ${di.pending} baru</span>`:''}`
         : '<span style="color:var(--text-muted);font-size:12px">Belum pernah login</span>';
+      pwCell = acc.pwChangedAt
+        ? fmtLoginTs(acc.pwChangedAt)
+        : '<span style="color:var(--text-muted);font-size:12px">Belum tercatat</span>';
     }
     return `<tr>
     <td><b>${emp.nama}</b></td>
@@ -3287,6 +3321,7 @@ function renderUserTable(){
     <td>${acc?`<code style="background:#F0F4F8;padding:2px 6px;border-radius:4px;font-size:12px">${acc.username}</code>`:'<span style="color:var(--text-muted);font-size:12px">—</span>'}</td>
     <td>${acc?(acc.aktif!==false?'<span class="badge badge-s">Aktif</span>':'<span class="badge badge-d">Nonaktif</span>'):'<span class="badge badge-w">Belum dibuat</span>'}</td>
     <td>${deviceCell}</td>
+    <td style="font-size:12px;white-space:nowrap">${pwCell}</td>
     <td style="white-space:nowrap">
       <button class="btn btn-sm btn-primary" onclick="openUserModal('${emp.id}','${type}')">${acc?'✏️ Edit':'➕ Buat Akun'}</button>
       ${acc?`<button class="btn btn-sm btn-danger" onclick="delUserAcc('${acc.id}')">🗑️</button>`:''}
@@ -3329,6 +3364,7 @@ function openUserModal(empId, empType){
     <div class="fg" style="margin-top:12px"><label>Status Akun</label>
       <select id="um-aktif"><option value="1" ${acc?.aktif!==false?'selected':''}>Aktif</option><option value="0" ${acc?.aktif===false?'selected':''}>Nonaktif</option></select>
     </div>
+    ${acc?`<div style="font-size:12px;color:var(--text-muted);margin-top:10px">🕒 Sandi terakhir diubah: <b>${acc.pwChangedAt?fmtLoginTs(acc.pwChangedAt):'Belum tercatat'}</b></div>`:''}
     <div class="info-box" style="margin-top:12px">🔒 &nbsp;Password disimpan dalam bentuk terenkripsi (hash), tidak pernah tersimpan atau ditampilkan sebagai teks biasa.</div>`;
   el('mo-user').classList.add('open');
 }
@@ -3354,10 +3390,11 @@ async function saveUserAcc(){
       // Selalu migrasi ke passwordHash setiap kali disimpan, meski password tidak diubah
       // (menghapus jejak password lama yang mungkin masih tersimpan polos).
       const passwordHash = password ? await sha256Hex(password) : (old.passwordHash || (old.password?await sha256Hex(old.password):''));
-      S.userAccounts[i]={id:old.id,empId,empType,username,passwordHash,aktif};
+      const pwChangedAt = password ? Date.now() : (old.pwChangedAt||null);
+      S.userAccounts[i]={id:old.id,empId,empType,username,passwordHash,aktif,pwChangedAt};
     }
   } else {
-    S.userAccounts.push({id:uid(),empId,empType,username,passwordHash:await sha256Hex(password),aktif});
+    S.userAccounts.push({id:uid(),empId,empType,username,passwordHash:await sha256Hex(password),aktif,pwChangedAt:Date.now()});
   }
   saveState(); closeM('mo-user'); renderUserTable();
   alert('✅ Akun berhasil disimpan!');
@@ -3425,6 +3462,7 @@ function saveSettings(){
   CFG.approver1=gv('set-approver1');
   CFG.approver2=gv('set-approver2');
   CFG.waHrd=gv('set-wa-hrd');
+  CFG.catatanRahasia=gv('set-catatan-rahasia');
   saveCFG(); renderSlipPreview(); applyLogoUI(); updateWaPreview();
 }
 
@@ -3442,6 +3480,7 @@ function applySettingsUI(){
   const a1=el('set-approver1'); if(a1) a1.value=CFG.approver1||'';
   const a2=el('set-approver2'); if(a2) a2.value=CFG.approver2||'';
   const wa=el('set-wa-hrd'); if(wa) wa.value=CFG.waHrd||'';
+  const cr=el('set-catatan-rahasia'); if(cr) cr.value=CFG.catatanRahasia||'';
   updateWaPreview();
   if(CFG.logo){ showLogoImg(CFG.logo); } else { const i=el('logo-img'),p=el('logo-ph'); if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex'; }
   if(CFG.ttd){  showTtdImg(CFG.ttd);  } else { const i=el('ttd-img'),p=el('ttd-ph');   if(i){i.src='';i.style.display='none';}if(p)p.style.display='flex'; }

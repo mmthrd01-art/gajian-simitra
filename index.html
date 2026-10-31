@@ -3128,7 +3128,7 @@ function renderRekap(){
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Potongan</div><div class="sc-val" style="font-size:18px">${rp(totPot)}</div></div>
     </div>
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Cashbon</div><div class="sc-val" style="font-size:16px">${rp(totC)}</div></div>
+      <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Potongan</div><div class="sc-val" style="font-size:16px">${rp(totC)}</div></div>
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Terlambat</div><div class="sc-val" style="font-size:16px">${rp(totTerlambat)}</div></div>
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Masuk</div><div class="sc-val" style="font-size:16px">${rp(totTM)}</div></div>
       <div class="sc d" style="flex:1;min-width:140px;padding:12px 16px"><div class="sc-label">Total Pot. Tdk Absen Pulang</div><div class="sc-val" style="font-size:16px">${rp(totTP)}</div></div>
@@ -3675,7 +3675,7 @@ function staffBodyHtml(emp,sd,c,mode){
   if(c.kpi>0) h+=row('Bonus KPI','+ '+rp(c.kpi),'color:#7C3AED');
   c.penList.forEach((p,i)=>{ h+=row('Pendapatan Lainnya'+(p.ket?' ('+escapeHtml(p.ket)+')':''),'+ '+rp(p.rp),'color:#1B7A4B'); });
   c.potList.forEach(p=>{ h+=row('Potongan '+escapeHtml(p.ket),'- '+rp(p.rp),'color:#C0392B'); });
-  h+=row('Total Cashbon','- '+rp(c.cash),big+'color:#C0392B');
+  h+=row('Total Potongan','- '+rp(c.cash),big+'color:#C0392B');
   if(slip) h+=`<div class="slip-grand"><span class="gl">Total Terima</span><span class="gv">${rp(c.total)}</span></div>`;
   else h+=`<div class="sv-total"><span>💰 Total Terima</span><span>${rp(c.total)}</span></div>`;
   return h;

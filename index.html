@@ -3605,6 +3605,7 @@ const _nm=new Date().getMonth();
   updateMobHam();
 })();
 </script>
+
 <!-- ============================================================
   PATCH FORMAT GAJI & SLIP STAFF — Mitra Multi Teknik
   CARA PAKAI: tempel SELURUH isi file ini tepat sebelum </body>
@@ -3642,7 +3643,7 @@ window.terbilang=function(n){
 
 // ---------- perhitungan Staff ----------
 // Total Terima = Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya
-// (Tunjangan Kinerja memakai kolom data lama "tunjMakan" supaya data karyawan lama tidak hilang)
+// (Tunjangan Makan memakai kolom data "tunjMakan" supaya data karyawan lama tidak hilang)
 window.staffCalc=function(emp,sd,type,mon,yr){
   const gp=sd.gajiPokok||emp.gajiPokok||0, tj=sd.tunjJabatan||emp.tunjJabatan||0;
   const tkh=emp.tunjKehadiran||0, tkin=emp.tunjMakan||0, ttr=emp.tunjTransport||0;
@@ -3650,48 +3651,33 @@ window.staffCalc=function(emp,sd,type,mon,yr){
   const izinHari=sd.izinHari||0, izinRate=tkh+tkin+ttr, izin=izinHari*izinRate;
   const penList=[].concat(sd.pendapatanTambahan||[],sd.pembayaranLain||[]).filter(p=>p&&p.rp>0).map(p=>({ket:p.ket||'',rp:p.rp}));
   const lain=penList.reduce((a,b)=>a+b.rp,0);
-  const potList=(sd.cashbon||[]).filter(c=>c&&c.rp>0).map(c=>({ket:c.ket||'Cashbon',rp:c.rp}));
+  const cash=(sd.cashbon||[]).reduce((x,c)=>x+((c&&c.rp)||0),0);
+  const potList=[];
   [['Terlambat',sd.potTerlambatJml,emp.potTerlambat],['Tidak absen masuk',sd.potTdkMasukJml,emp.potTdkMasuk],['Tidak absen pulang',sd.potTdkPulangJml,emp.potTdkPulang]].forEach(([k,n,r])=>{
     const v=(n||0)*(r||0); if(v>0) potList.push({ket:k+' ('+n+'×)',rp:v});
   });
-  const pot=potList.reduce((a,b)=>a+b.rp,0);
+  const potOther=potList.reduce((x,y)=>x+y.rp,0);
+  const pot=cash+potOther;
   const kpi=getKpiNilai(type,emp.id,mon,yr);
-  return {gp,tj,tkh,tkin,ttr,totGaji,izinHari,izinRate,izin,penList,lain,potList,pot,kpi,total:totGaji-izin-pot+kpi+lain};
+  return {cash,potOther,gp,tj,tkh,tkin,ttr,totGaji,izinHari,izinRate,izin,penList,lain,potList,pot,kpi,total:totGaji-izin-pot+kpi+lain};
 };
 
 // ---------- isi rincian (dipakai slip & portal karyawan) ----------
 function staffBodyHtml(emp,sd,c,mode){
   const slip=mode==='slip';
-  const row=(a,b,st)=>`<div class="${slip?'slip-line m':'sv-row'}"${st?` style="${st}"`:''}><span>${a}</span><span>${b}</span></div>`;
-  const head=(t,red)=>slip?`<div class="slip-sec${red?' red':''}">${t}</div>`
-    :`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:${red?'var(--danger)':'var(--text-muted)'};margin:12px 0 6px">${t}</div>`;
-  const sub=(a,b,red)=>slip?`<div class="slip-sub${red?' red':''}"><span>${a}</span><span>${b}</span></div>`
-    :`<div class="sv-row" style="font-weight:700;color:${red?'var(--danger)':'var(--primary)'}"><span>${a}</span><span>${b}</span></div>`;
-  const ind='padding-left:14px;';
+  const row=(a,b,st)=>`<div class="${slip?'slip-line':'sv-row'}"${st?` style="${st}"`:''}><span>${a}</span><span>${b}</span></div>`;
+  const note=t=>`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:0 0 8px;line-height:1.5;font-style:italic">${t}</div>`;
+  const big='font-size:14px;font-weight:700;padding:8px 2px;';
   let h='';
-  h+=row('<b>Total Gaji Per Bulan</b>','<b>'+rp(c.totGaji)+'</b>');
-  h+=row('<b>Jumlah Hari Izin/Sakit</b>','<b>'+c.izinHari+' hari</b>');
-  h+=`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:6px 0 2px;line-height:1.5">Rumus: Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya</div>`;
-  h+=head('Pendapatan');
-  h+=row('<b>Total Gaji Per Bulan</b>','');
-  h+=row('1. Gaji Pokok',rp(c.gp),ind);
-  h+=row('2. Tunjangan Jabatan',rp(c.tj),ind);
-  h+=row('3. Tunjangan Kehadiran',rp(c.tkh),ind);
-  h+=row('4. Tunjangan Kinerja',rp(c.tkin),ind);
-  h+=row('5. Tunjangan Transport',rp(c.ttr),ind);
-  h+=sub('Jumlah Total Gaji Per Bulan',rp(c.totGaji));
-  h+=row('Bonus KPI',rp(c.kpi));
-  h+=row('<b>Pendapatan Lainnya</b>','<b>'+rp(c.lain)+'</b>');
-  c.penList.forEach((p,i)=>{ h+=row('Pen.'+(i+1)+(p.ket?' ('+escapeHtml(p.ket)+')':''),rp(p.rp),ind); });
-  h+=head('Potongan',true);
-  h+=row('<b>Potongan</b>','<b>- '+rp(c.pot)+'</b>');
-  c.potList.forEach((p,i)=>{ h+=row('Pot.'+(i+1)+(p.ket?' ('+escapeHtml(p.ket)+')':''),'- '+rp(p.rp),ind); });
-  h+=row('<b>Izin/Sakit</b>','<b>- '+rp(c.izin)+'</b>');
-  h+=row(c.izinHari+' hari × (Tunj. Kinerja + Kehadiran + Transport = '+rp(c.izinRate)+')','',ind+'font-size:11.5px');
-  h+=`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:10px 0 2px;line-height:1.5">Rumus: Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya</div>`;
-  const tb=`<div style="font-size:11.5px;font-style:italic;margin-top:8px;${slip?'':'padding:0 0 10px'}"><b>Terbilang:</b> ${terbilang(c.total)}</div>`;
-  if(slip) h+=`<div class="slip-grand"><span class="gl">Total Terima</span><span class="gv">${rp(c.total)}</span></div>`+tb;
-  else h+=tb+`<div class="sv-total"><span>💰 Total Terima</span><span>${rp(c.total)}</span></div>`;
+  h+=row('Total Gaji Per Bulan',rp(c.totGaji),big+'color:'+(slip?'#1E3A5F':'var(--primary)'));
+  h+=row('Jumlah Potong Hari Izin/Sakit','- '+rp(c.izin),big+'color:#C0392B');
+  h+=note('*Keterangan: ('+c.izinHari+' hari Izin/Sakit × Tunjangan Kehadiran, Makan, Transport = '+rp(c.izinRate)+' per hari)');
+  if(c.kpi>0) h+=row('Bonus KPI','+ '+rp(c.kpi),'color:#7C3AED');
+  c.penList.forEach((p,i)=>{ h+=row('Pendapatan Lainnya'+(p.ket?' ('+escapeHtml(p.ket)+')':''),'+ '+rp(p.rp),'color:#1B7A4B'); });
+  c.potList.forEach(p=>{ h+=row('Potongan '+escapeHtml(p.ket),'- '+rp(p.rp),'color:#C0392B'); });
+  h+=row('Total Cashbon','- '+rp(c.cash),big+'color:#C0392B');
+  if(slip) h+=`<div class="slip-grand"><span class="gl">Total Terima</span><span class="gv">${rp(c.total)}</span></div>`;
+  else h+=`<div class="sv-total"><span>💰 Total Terima</span><span>${rp(c.total)}</span></div>`;
   return h;
 }
 
@@ -3716,11 +3702,11 @@ window.openSlipStaff=function(emp,sd,mon,yr){
       </div>
       ${staffBodyHtml(emp,sd,c,'slip')}
       <div class="slip-sign-row" style="justify-content:flex-end">
-        <div class="slip-sign-col"><div class="sign-label">Tertanda,</div>
+        <div class="slip-sign-col"><div class="sign-label">Tandatangan HRD,</div>
           <div class="sign-img">${ttdH}</div>${ttdH?'':'<div class="sign-line"></div>'}
           <div class="sign-name">${CFG.hrdNama||'HRD / Payroll'}</div><div class="sign-role">HRD</div></div>
       </div>
-      <div class="slip-note">⚠️ <b>Pesan:</b> ${escapeHtml(getCatatanRahasia())}</div>
+      <div class="slip-note">⚠️ <b>Peringatan:</b> ${escapeHtml(getCatatanRahasia())}</div>
       <div class="slip-foot">Slip gaji ini dihasilkan otomatis oleh Sistem Penggajian ${co} dan sah tanpa cap basah.</div>
     </div></div></div>`;
   el('mo-slip').classList.add('open');
@@ -3744,7 +3730,7 @@ window.updateEPSalary=function(){
     el('ep-sal').innerHTML=`<div class="sv-card">
       <div class="sv-head">Rincian Gaji – ${MONTHS[mon]} ${yr} <span style="float:right;font-size:11px;font-weight:600;color:var(--text-muted)">${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
       <div class="sv-body">${staffBodyHtml(emp,sd,c,'ep')}</div></div>
-      <div class="slip-note" style="margin-top:14px">⚠️ <b>Pesan:</b> ${escapeHtml(getCatatanRahasia())}</div>`;
+      <div class="slip-note" style="margin-top:14px">⚠️ <b>Peringatan:</b> ${escapeHtml(getCatatanRahasia())}</div>`;
     return;
   }
   return _upd();
@@ -3795,7 +3781,7 @@ window.openSalDetail=function(type,empId,mon,yr){
         <div class="fg"><label>2. Tunj. Jabatan (Rp)</label><input type="number" id="sd-tj" value="${sd.tunjJabatan||emp.tunjJabatan||0}" oninput="calcSal()"></div>
       </div>
       <div class="sal-row"><span style="color:var(--text-muted)">3. Tunjangan Kehadiran</span><span>${rp(emp.tunjKehadiran||0)}</span></div>
-      <div class="sal-row"><span style="color:var(--text-muted)">4. Tunjangan Kinerja</span><span>${rp(emp.tunjMakan||0)}</span></div>
+      <div class="sal-row"><span style="color:var(--text-muted)">4. Tunjangan Makan</span><span>${rp(emp.tunjMakan||0)}</span></div>
       <div class="sal-row"><span style="color:var(--text-muted)">5. Tunjangan Transport</span><span>${rp(emp.tunjTransport||0)}</span></div>
       <div class="sal-row"><span style="font-weight:700">Total Gaji Per Bulan</span><span id="sc-totgaji" style="font-weight:700">-</span></div>
     </div>
@@ -3813,7 +3799,7 @@ window.openSalDetail=function(type,empId,mon,yr){
       <div class="fg"><label>Jml. Tdk Absen Pulang (×)</label><input type="number" id="sd-ptp" value="${sd.potTdkPulangJml||0}" min="0" oninput="calcSal()"></div>
     </div>
     <div class="sal-row"><span style="color:var(--text-muted)">Total Potongan</span><span id="sc-pot" style="color:var(--danger)">-</span></div>
-    <div class="sal-row"><span style="color:var(--text-muted)">Izin/Sakit (hari × Tunj. Kinerja+Kehadiran+Transport)</span><span id="sc-izin" style="color:var(--danger)">-</span></div>
+    <div class="sal-row"><span style="color:var(--text-muted)">Potong Izin/Sakit (hari × Tunj. Kehadiran+Makan+Transport)</span><span id="sc-izin" style="color:var(--danger)">-</span></div>
     <div class="sal-block" style="margin-top:14px"><div class="sal-row total"><span>TOTAL TERIMA</span><span id="sc-final" style="font-size:18px">-</span></div>
       <div id="sc-terbilang" style="font-size:12px;font-style:italic;color:var(--text-muted);margin-top:6px"></div></div>`;
   el('mo-sal').classList.add('open');
@@ -3851,19 +3837,9 @@ patchFn('renderDashboard',[["const g=base+tl+tp+tLain+tKpi-tpot;","const g=type=
 patchFn('getMonAgg',[["gaji+=base+tl+tp+tLain+tKpi-tpot;","gaji+=type==='st'?staffCalc(e,sd,type,mon,yr).total:base+tl+tp+tLain+tKpi-tpot;"]]);
 ['renderRekap','printRekap'].forEach(n=>patchFn(n,[["const totGajiEmp=base+tl+tp+tLainEmp+kpiEmp-totPotEmp;","const totGajiEmp=type==='st'?staffCalc(emp,sd,type,mon,yr).total:base+tl+tp+tLainEmp+kpiEmp-totPotEmp;"]]));
 
-// ---------- label form karyawan Staff ----------
-const _oem=openEmpModal;
-window.openEmpModal=function(type,id){
-  _oem(type,id);
-  if(type==='st'){
-    const map={'Tunj. Kehadiran/hari (Rp)':'Tunj. Kehadiran (Rp)','Tunj. Makan/hari (Rp)':'Tunj. Kinerja (Rp)','Tunj. Transport/hari (Rp)':'Tunj. Transport (Rp)'};
-    document.querySelectorAll('#mo-emp-body label').forEach(l=>{ const t=l.textContent.trim(); if(map[t]) l.textContent=map[t]; });
-  }
-};
-document.querySelectorAll('#page-emp-st thead th').forEach(th=>{ if(th.textContent.trim()==='T.Makan') th.textContent='T.Kinerja'; });
-
 console.log('✅ Patch format gaji Staff aktif');
 })();
 </script>
+
 </body>
 </html>

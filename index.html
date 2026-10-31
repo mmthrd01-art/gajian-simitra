@@ -3641,7 +3641,7 @@ window.terbilang=function(n){
 };
 
 // ---------- perhitungan Staff ----------
-// Total Terima = Total Gaji Keseluruhan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya
+// Total Terima = Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya
 // (Tunjangan Kinerja memakai kolom data lama "tunjMakan" supaya data karyawan lama tidak hilang)
 window.staffCalc=function(emp,sd,type,mon,yr){
   const gp=sd.gajiPokok||emp.gajiPokok||0, tj=sd.tunjJabatan||emp.tunjJabatan||0;
@@ -3669,7 +3669,9 @@ function staffBodyHtml(emp,sd,c,mode){
     :`<div class="sv-row" style="font-weight:700;color:${red?'var(--danger)':'var(--primary)'}"><span>${a}</span><span>${b}</span></div>`;
   const ind='padding-left:14px;';
   let h='';
-  h+=row('<b>Jumlah Hari Hadir</b>','<b>'+(sd.jumlahHadir||0)+'</b>');
+  h+=row('<b>Total Gaji Per Bulan</b>','<b>'+rp(c.totGaji)+'</b>');
+  h+=row('<b>Jumlah Hari Izin/Sakit</b>','<b>'+c.izinHari+' hari</b>');
+  h+=`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:6px 0 2px;line-height:1.5">Rumus: Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya</div>`;
   h+=head('Pendapatan');
   h+=row('<b>Total Gaji Per Bulan</b>','');
   h+=row('1. Gaji Pokok',rp(c.gp),ind);
@@ -3677,7 +3679,7 @@ function staffBodyHtml(emp,sd,c,mode){
   h+=row('3. Tunjangan Kehadiran',rp(c.tkh),ind);
   h+=row('4. Tunjangan Kinerja',rp(c.tkin),ind);
   h+=row('5. Tunjangan Transport',rp(c.ttr),ind);
-  h+=sub('Total Gaji Keseluruhan',rp(c.totGaji));
+  h+=sub('Jumlah Total Gaji Per Bulan',rp(c.totGaji));
   h+=row('Bonus KPI',rp(c.kpi));
   h+=row('<b>Pendapatan Lainnya</b>','<b>'+rp(c.lain)+'</b>');
   c.penList.forEach((p,i)=>{ h+=row('Pen.'+(i+1)+(p.ket?' ('+escapeHtml(p.ket)+')':''),rp(p.rp),ind); });
@@ -3686,7 +3688,7 @@ function staffBodyHtml(emp,sd,c,mode){
   c.potList.forEach((p,i)=>{ h+=row('Pot.'+(i+1)+(p.ket?' ('+escapeHtml(p.ket)+')':''),'- '+rp(p.rp),ind); });
   h+=row('<b>Izin/Sakit</b>','<b>- '+rp(c.izin)+'</b>');
   h+=row(c.izinHari+' hari × (Tunj. Kinerja + Kehadiran + Transport = '+rp(c.izinRate)+')','',ind+'font-size:11.5px');
-  h+=`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:10px 0 2px;line-height:1.5">Rumus: Total Gaji Keseluruhan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya</div>`;
+  h+=`<div style="font-size:10.5px;color:${slip?'#5A6A7A':'var(--text-muted)'};margin:10px 0 2px;line-height:1.5">Rumus: Total Gaji Per Bulan − Izin/Sakit − Potongan + Bonus KPI + Pendapatan Lainnya</div>`;
   const tb=`<div style="font-size:11.5px;font-style:italic;margin-top:8px;${slip?'':'padding:0 0 10px'}"><b>Terbilang:</b> ${terbilang(c.total)}</div>`;
   if(slip) h+=`<div class="slip-grand"><span class="gl">Total Terima</span><span class="gv">${rp(c.total)}</span></div>`+tb;
   else h+=tb+`<div class="sv-total"><span>💰 Total Terima</span><span>${rp(c.total)}</span></div>`;
@@ -3795,7 +3797,7 @@ window.openSalDetail=function(type,empId,mon,yr){
       <div class="sal-row"><span style="color:var(--text-muted)">3. Tunjangan Kehadiran</span><span>${rp(emp.tunjKehadiran||0)}</span></div>
       <div class="sal-row"><span style="color:var(--text-muted)">4. Tunjangan Kinerja</span><span>${rp(emp.tunjMakan||0)}</span></div>
       <div class="sal-row"><span style="color:var(--text-muted)">5. Tunjangan Transport</span><span>${rp(emp.tunjTransport||0)}</span></div>
-      <div class="sal-row"><span style="font-weight:700">Total Gaji Keseluruhan</span><span id="sc-totgaji" style="font-weight:700">-</span></div>
+      <div class="sal-row"><span style="font-weight:700">Total Gaji Per Bulan</span><span id="sc-totgaji" style="font-weight:700">-</span></div>
     </div>
     <div class="sal-row"><span style="color:var(--text-muted)">Bonus KPI (diisi di menu Nilai KPI)</span><span style="color:#7C3AED;font-weight:700">${rp(getKpiNilai('st',empId,mon,yr))}</span></div>
     <div class="sdiv" style="margin-top:14px">Pendapatan Lainnya (Pen.1, Pen.2, ...)</div>

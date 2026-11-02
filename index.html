@@ -3840,6 +3840,170 @@ patchFn('getMonAgg',[["gaji+=base+tl+tp+tLain+tKpi-tpot;","gaji+=type==='st'?sta
 console.log('✅ Patch format gaji Staff aktif');
 })();
 </script>
+<!-- ============================================================
+  PATCH GANTI PASSWORD MANDIRI (KARYAWAN) — Mitra Multi Teknik
+  Tempel tepat sebelum </body> (setelah </script> terakhir)
+============================================================ -->
+<script>
+(function(){
+  const MIN_LEN = 6;        // panjang minimal password baru
+  const MAX_TRY = 5;        // maks. salah password lama berturut-turut
+  const LOCK_MS = 60000;    // terkunci 60 detik setelah MAX_TRY kali salah
+  let tries = 0, lockUntil = 0;
 
+  // 1) Tambah tab "Ganti Password" ke portal (Full & Staff)
+  [EP_TABS_FULL, EP_TABS_STAFF].forEach(arr=>{
+    if(!arr.find(t=>t.id==='pass'))
+      arr.push({id:'pass', label:'🔑 Ganti Password', fn:'renderPassEmpPage'});
+  });
+
+  // 2) Ambil akun karyawan yang sedang login
+  function currentAcc(){
+    const auth = sessionStorage.getItem('mmt_auth') || '';
+    if(!auth.startsWith('emp:')) return null;
+    const id = auth.split(':')[1];
+    return S.userAccounts.find(a => a.id === id) || null;
+  }
+
+  // 3) Indikator kekuatan password
+  function strength(p){
+    let s = 0;
+    if(p.length >= MIN_LEN) s++;
+    if(p.length >= 10) s++;
+    if(/[a-z]/.test(p) && /[A-Z]/.test(p)) s++;
+    if(/\d/.test(p)) s++;
+    if(/[^A-Za-z0-9]/.test(p)) s++;
+    return Math.min(s, 4);
+  }
+  window.pwOnInput = function(){
+    const p = gv('pw-new'), bar = el('pw-str-bar'), lbl = el('pw-str-lbl');
+    if(!bar) return;
+    const s = p ? strength(p) : 0;
+    const cols = ['#D1DCE8','#C0392B','#D4870A','#1565C0','#1B7A4B'];
+    const txt  = ['','Lemah','Cukup','Baik','Kuat'];
+    bar.style.width = (s*25)+'%';
+    bar.style.background = cols[s];
+    lbl.textContent = p ? txt[s] : '';
+    lbl.style.color = cols[s];
+    const m2 = el('pw-match'), n2 = gv('pw-new2');
+    if(m2){
+      if(!n2){ m2.textContent=''; }
+      else if(n2 === p){ m2.textContent='✓ Konfirmasi cocok'; m2.style.color='#1B7A4B'; }
+      else { m2.textContent='✗ Konfirmasi belum cocok'; m2.style.color='#C0392B'; }
+    }
+  };
+
+  window.pwToggleVis = function(id, btn){
+    const i = el(id); if(!i) return;
+    i.type = i.type === 'password' ? 'text' : 'password';
+    btn.textContent = i.type === 'password' ? '👁️' : '🙈';
+  };
+
+  // 4) Tampilan tab
+  window.renderPassEmpPage = function(){
+    const box = el('ep-tab-content-pass'); if(!box) return;
+    const acc = currentAcc();
+    const changed = acc && acc.pwChangedAt ? fmtLoginTs(acc.pwChangedAt) : 'Belum tercatat';
+    const field = (id, label, extra) => `
+      <div class="fg" style="margin-bottom:12px"><label>${label}</label>
+        <div style="display:flex;gap:6px">
+          <input type="password" id="${id}" autocomplete="${id==='pw-old'?'current-password':'new-password'}"
+                 ${extra||''} onkeydown="if(event.key==='Enter')submitGantiPassword()">
+          <button type="button" class="btn btn-sm" style="flex:none" onclick="pwToggleVis('${id}',this)">👁️</button>
+        </div>
+      </div>`;
+    box.innerHTML = `
+      <div class="izin-form-card">
+        <div class="card-title" style="margin-bottom:6px">🔑 Ganti Password</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">
+          Username: <b>${escapeHtml(acc ? acc.username : '-')}</b> &bull; Terakhir diubah: <b>${changed}</b>
+        </div>
+        <div class="info-box" style="margin-bottom:14px">ℹ️ &nbsp;Gunakan minimal <b>${MIN_LEN} karakter</b>. Disarankan kombinasi huruf besar, huruf kecil, dan angka. Jangan beritahukan password Anda kepada siapa pun.</div>
+        <div id="pw-msg" class="login-err" style="margin-bottom:12px"></div>
+        ${field('pw-old','Password Saat Ini')}
+        ${field('pw-new','Password Baru','oninput="pwOnInput()"')}
+        <div style="height:6px;background:#EEF3F8;border-radius:4px;overflow:hidden;margin:-6px 0 4px">
+          <div id="pw-str-bar" style="height:100%;width:0;transition:all .2s"></div>
+        </div>
+        <div id="pw-str-lbl" style="font-size:11px;font-weight:700;min-height:14px;margin-bottom:12px"></div>
+        ${field('pw-new2','Ulangi Password Baru','oninput="pwOnInput()"')}
+        <div id="pw-match" style="font-size:11.5px;font-weight:600;min-height:14px;margin:-6px 0 12px"></div>
+        <button class="btn btn-primary" id="pw-btn" style="width:100%;justify-content:center;padding:11px" onclick="submitGantiPassword()">💾 Simpan Password Baru</button>
+      </div>`;
+  };
+
+  // 5) Proses simpan
+  window.submitGantiPassword = async function(){
+    const msg = el('pw-msg'), btn = el('pw-btn');
+    const show = (t, ok) => {
+      msg.textContent = t;
+      msg.style.display = 'block';
+      msg.style.background = ok ? '#E8F5EE' : '#FDECEB';
+      msg.style.color = ok ? 'var(--success)' : 'var(--danger)';
+    };
+
+    if(Date.now() < lockUntil){
+      show('Terlalu banyak percobaan salah. Coba lagi dalam '+Math.ceil((lockUntil-Date.now())/1000)+' detik.', false);
+      return;
+    }
+
+    const oldP = gv('pw-old'), n1 = gv('pw-new'), n2 = gv('pw-new2');
+    if(!oldP || !n1 || !n2){ show('Mohon isi semua kolom.', false); return; }
+    if(n1.length < MIN_LEN){ show('Password baru minimal '+MIN_LEN+' karakter.', false); return; }
+    if(n1 !== n2){ show('Konfirmasi password baru tidak cocok.', false); return; }
+    if(n1 === oldP){ show('Password baru tidak boleh sama dengan password lama.', false); return; }
+
+    const acc = currentAcc();
+    if(!acc || acc.aktif === false){ show('Akun tidak ditemukan atau nonaktif. Hubungi HRD.', false); return; }
+    if(!_fbReady || !DB){ show('Belum terhubung ke server. Coba lagi sebentar.', false); return; }
+
+    btn.disabled = true;
+    try{
+      // Verifikasi password lama (mendukung akun lama yang masih plain-text)
+      const oldHash = await sha256Hex(oldP);
+      const ok = (acc.passwordHash && acc.passwordHash === oldHash) ||
+                 (!acc.passwordHash && acc.password && acc.password === oldP);
+      if(!ok){
+        tries++;
+        if(tries >= MAX_TRY){ lockUntil = Date.now()+LOCK_MS; tries = 0;
+          show('Password saat ini salah berulang kali. Fitur dikunci 60 detik.', false); }
+        else show('Password saat ini salah. Sisa percobaan: '+(MAX_TRY-tries)+'.', false);
+        el('pw-old').value = '';
+        return;
+      }
+      tries = 0;
+
+      const newHash = await sha256Hex(n1);
+      const now = Date.now();
+
+      // Update HANYA akun ini di Firebase (tidak menimpa data gaji dll.)
+      const snap = await DB.ref('data/userAccounts').once('value');
+      let key = null;
+      snap.forEach(ch => { const v = ch.val(); if(v && v.id === acc.id){ key = ch.key; return true; } });
+      if(key === null) throw new Error('Akun tidak ditemukan di server.');
+
+      await DB.ref('data/userAccounts/'+key).update({
+        passwordHash: newHash,
+        pwChangedAt: now,
+        password: null          // hapus sisa password plain-text jika ada
+      });
+
+      acc.passwordHash = newHash; acc.pwChangedAt = now; delete acc.password;
+
+      el('pw-old').value = el('pw-new').value = el('pw-new2').value = '';
+      pwOnInput();
+      show('✅ Password berhasil diubah. Gunakan password baru saat login berikutnya.', true);
+      showSync('✅ Password berhasil diubah');
+    }catch(e){
+      console.error('Ganti password gagal', e);
+      show('Gagal menyimpan: '+(e.message||'periksa koneksi internet')+'.', false);
+    }finally{
+      btn.disabled = false;
+    }
+  };
+
+  console.log('✅ Patch ganti password mandiri aktif');
+})();
+</script>
 </body>
 </html>

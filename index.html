@@ -4005,5 +4005,298 @@ console.log('✅ Patch format gaji Staff aktif');
   console.log('✅ Patch ganti password mandiri aktif');
 })();
 </script>
-</body>
+</body><script>
+// ================= TAMBAHAN: FORMAT STAFF + NOTIFIKASI LOGIN =================
+// ---------- Alat bantu: ubah isi fungsi lama tanpa edit manual ----------
+function _xPatch(name,pairs){
+  let src=window[name].toString(),ok=true;
+  pairs.forEach(p=>{ if(src.indexOf(p[0])<0){ok=false;console.warn('Patch gagal: '+name);} else src=src.split(p[0]).join(p[1]); });
+  if(ok) (0,eval)(src);
+}
+
+// ---------- STAFF: terbilang & perhitungan ----------
+function terbilang(n){
+  n=Math.floor(Math.abs(n));
+  const s=['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh','sebelas'];
+  if(n<12) return s[n];
+  if(n<20) return terbilang(n-10)+' belas';
+  if(n<100) return terbilang(Math.floor(n/10))+' puluh'+(n%10?' '+terbilang(n%10):'');
+  if(n<200) return 'seratus'+(n-100?' '+terbilang(n-100):'');
+  if(n<1000) return terbilang(Math.floor(n/100))+' ratus'+(n%100?' '+terbilang(n%100):'');
+  if(n<2000) return 'seribu'+(n-1000?' '+terbilang(n-1000):'');
+  if(n<1e6) return terbilang(Math.floor(n/1e3))+' ribu'+(n%1e3?' '+terbilang(n%1e3):'');
+  if(n<1e9) return terbilang(Math.floor(n/1e6))+' juta'+(n%1e6?' '+terbilang(n%1e6):'');
+  if(n<1e12) return terbilang(Math.floor(n/1e9))+' miliar'+(n%1e9?' '+terbilang(n%1e9):'');
+  return terbilang(Math.floor(n/1e12))+' triliun'+(n%1e12?' '+terbilang(n%1e12):'');
+}
+function terbilangRp(n){ if(!n) return 'Nol rupiah'; const t=terbilang(n); return t.charAt(0).toUpperCase()+t.slice(1)+' rupiah'; }
+
+function calcStaff(emp,sd,mon,yr){
+  const gp=sd.gajiPokok||emp.gajiPokok||0, tj=sd.tunjJabatan||emp.tunjJabatan||0;
+  const tkh=emp.tunjKehadiran||0, tki=emp.tunjKinerja||0, ttr=emp.tunjTransport||0;
+  const totalGaji=gp+tj+tkh+tki+ttr;
+  const pen=(sd.pendapatanTambahan||[]).slice(0,5), pot=(sd.cashbon||[]).slice(0,6);
+  const totPen=pen.reduce((a,b)=>a+(b.rp||0),0), totPot=pot.reduce((a,b)=>a+(b.rp||0),0);
+  const izinHari=sd.izinHari||0, izinPer=tki+tkh+ttr, izin=izinHari*izinPer;
+  const kpi=getKpiNilai('st',emp.id,mon,yr);
+  return {hadir:sd.jumlahHadir||0,gp,tj,tkh,tki,ttr,totalGaji,pen,pot,totPen,totPot,izinHari,izinPer,izin,kpi,
+          total:totalGaji-izin-totPot+kpi+totPen};
+}
+
+function staffRowsHtml(c,mode){
+  const R=mode==='ep'?'sv-row':'slip-line m';
+  const H=(t,red)=>mode==='ep'
+    ?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:${red?'var(--danger)':'var(--text-muted)'};margin:12px 0 6px">${t}</div>`
+    :`<div class="slip-sec${red?' red':''}">${t}</div>`;
+  const SUB=(l,v,red)=>mode==='ep'
+    ?`<div class="sv-row" style="font-weight:700;color:${red?'var(--danger)':'var(--primary)'}"><span>${l}</span><span>${v}</span></div>`
+    :`<div class="slip-sub${red?' red':''}"><span>${l}</span><span>${v}</span></div>`;
+  const row=(l,v,col)=>`<div class="${R}"><span>${l}</span><span${col?` style="color:${col}"`:''}>${v}</span></div>`;
+  const ket=k=>k?` <small>(${escapeHtml(k)})</small>`:'';
+  return `
+    ${row('<b>Jumlah Hari Hadir</b>','<b>'+c.hadir+'</b>')}
+    ${H('Pendapatan')}
+    ${row('Total Gaji Per Bulan','')}
+    ${row('1. Gaji Pokok',rp(c.gp))}
+    ${row('2. Tunjangan Jabatan',rp(c.tj))}
+    ${row('3. Tunjangan Kehadiran',rp(c.tkh))}
+    ${row('4. Tunjangan Kinerja',rp(c.tki))}
+    ${row('5. Tunjangan Transport',rp(c.ttr))}
+    ${SUB('Total Gaji Per Bulan',rp(c.totalGaji))}
+    ${row('Bonus KPI',rp(c.kpi),'#7C3AED')}
+    ${H('Pendapatan Lainnya')}
+    ${c.pen.map((p,i)=>(p.rp>0||p.ket)?row(`Pen.${i+1}${ket(p.ket)}`,rp(p.rp)):'').join('')}
+    ${SUB('Pendapatan Lainnya',rp(c.totPen))}
+    ${H('Potongan',true)}
+    ${c.pot.map((p,i)=>(p.rp>0||p.ket)?row(`Pot.${i+1}${ket(p.ket)}`,'- '+rp(p.rp),'var(--danger)'):'').join('')}
+    ${SUB('Potongan','- '+rp(c.totPot),true)}
+    ${H('Izin / Sakit',true)}
+    ${row(`Izin/Sakit (${c.izinHari} hari × ${rp(c.izinPer)})`,'- '+rp(c.izin),'var(--danger)')}
+    <div style="font-size:10.5px;color:var(--text-muted);margin-top:8px;font-style:italic">Rumus: Total Gaji Keseluruhan − Jumlah Izin − Potongan + KPI + Pendapatan Lainnya</div>`;
+}
+
+function openSlipStaff(emp,sd,mon,yr){
+  const c=calcStaff(emp,sd,mon,yr);
+  const today=new Date().toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  const logoH=CFG.logo?`<img src="${CFG.logo}">`:'<span style="font-size:22px">🏢</span>';
+  const ttdH=CFG.ttd?`<img src="${CFG.ttd}">`:'';
+  const co=CFG.nama||'CV. MITRA MULTI TEKNIK';
+  el('mo-slip-body').innerHTML=`<div id="slip-area">
+    <div class="slip-doc"><div class="slip-accent"></div><div class="slip-body">
+      <div class="slip-head">
+        <div class="slip-logo">${logoH}</div>
+        <div><div class="slip-co-name">${co}</div><div class="slip-co-meta">${CFG.alamat?CFG.alamat+'<br>':''}${CFG.kontak||''}</div></div>
+        <div class="slip-badge-wrap"><div class="tag">SLIP GAJI</div><div class="period">Periode ${MONTHS[mon]} ${yr}</div></div>
+      </div>
+      <div class="slip-id-grid">
+        <div><span>Nama</span><span>${emp.nama}</span></div><div><span>NIK</span><span>${emp.nik||''}</span></div>
+        <div><span>Jabatan</span><span>${emp.jabatan||''}</span></div><div><span>Tanggal</span><span>${today}</span></div>
+        <div><span>Metode</span><span>${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
+      </div>
+      ${staffRowsHtml(c,'slip')}
+      <div class="slip-grand"><span class="gl">Total Terima</span><span class="gv">${rp(c.total)}</span></div>
+      <div style="font-size:12px;margin-top:8px"><b>Terbilang:</b> <i>${terbilangRp(c.total)}</i></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:26px;font-size:11.5px;text-align:center">
+        <div style="width:46%"><div class="sign-label">Tertanda,</div>
+          <div class="sign-img">${ttdH}</div>${ttdH?'':'<div class="sign-line"></div>'}
+          <div class="sign-name">${CFG.hrdNama||'HRD'}</div><div class="sign-role">HRD</div></div>
+      </div>
+      <div class="slip-note">⚠️ <b>Pesan:</b> ${escapeHtml(getCatatanRahasia())}</div>
+      <div class="slip-foot">Slip gaji ini dihasilkan otomatis oleh Sistem Penggajian ${co} dan sah tanpa cap basah.</div>
+    </div></div></div>`;
+  el('mo-slip').classList.add('open');
+}
+
+function openSalDetailStaff(mon,yr){
+  const emp=S.employees.st.find(e=>e.id===_salEmpId), sd=getSalData('st',emp,mon,yr);
+  el('mo-sal-title').textContent=`Detail Gaji – ${emp.nama} | ${MONTHS[mon]} ${yr}`;
+  const pen=Array.from({length:5},(_,i)=>{const p=sd.pendapatanTambahan[i]||{};return `<div class="subrow">
+    <span style="min-width:48px;font-size:12px;color:var(--text-muted)">Pen.${i+1}</span>
+    <input type="number" id="pr-${i}" value="${p.rp||0}" oninput="calcSal()">
+    <input type="text" id="pk-${i}" value="${escapeHtml(p.ket||'')}" placeholder="Keterangan" style="flex:2"></div>`}).join('');
+  const pot=Array.from({length:6},(_,i)=>{const p=sd.cashbon[i]||{};return `<div class="subrow">
+    <span style="min-width:48px;font-size:12px;color:var(--text-muted)">Pot.${i+1}</span>
+    <input type="number" id="cr-${i}" value="${p.rp||0}" oninput="calcSal()">
+    <input type="text" id="ck-${i}" value="${escapeHtml(p.ket||'')}" placeholder="Keterangan" style="flex:2"></div>`}).join('');
+  el('mo-sal-body').innerHTML=`
+    <div class="fg3" style="margin-bottom:14px">
+      <div class="fg"><label>Jumlah Hari Hadir</label><input type="number" id="sd-hadir" value="${sd.jumlahHadir||0}" min="0" max="31" oninput="calcSal()"></div>
+      <div class="fg"><label>Jumlah Hari Izin/Sakit</label><input type="number" id="sd-izin" value="${sd.izinHari||0}" min="0" step="0.5" oninput="calcSal()"></div>
+      <div class="fg"><label>Metode Pembayaran</label><select id="sd-metode"><option value="transfer" ${sd.metodeBayar!=='cash'?'selected':''}>💳 Transfer</option><option value="cash" ${sd.metodeBayar==='cash'?'selected':''}>💵 Cash</option></select></div>
+    </div>
+    <div class="sal-block"><div class="sdiv" style="margin-top:0">Total Gaji Per Bulan</div>
+      <div class="fg2" style="margin-bottom:10px">
+        <div class="fg"><label>1. Gaji Pokok (Rp)</label><input type="number" id="sd-gp" value="${sd.gajiPokok||emp.gajiPokok||0}" oninput="calcSal()"></div>
+        <div class="fg"><label>2. Tunjangan Jabatan (Rp)</label><input type="number" id="sd-tj" value="${sd.tunjJabatan||emp.tunjJabatan||0}" oninput="calcSal()"></div>
+      </div>
+      <div class="sal-row"><span style="color:var(--text-muted)">3. Tunjangan Kehadiran</span><span>${rp(emp.tunjKehadiran||0)}</span></div>
+      <div class="sal-row"><span style="color:var(--text-muted)">4. Tunjangan Kinerja</span><span>${rp(emp.tunjKinerja||0)}</span></div>
+      <div class="sal-row"><span style="color:var(--text-muted)">5. Tunjangan Transport</span><span>${rp(emp.tunjTransport||0)}</span></div>
+    </div>
+    <div class="sal-row"><span style="color:var(--text-muted)">Bonus KPI (diisi di menu Nilai KPI)</span><span style="color:#7C3AED;font-weight:700">${rp(getKpiNilai('st',_salEmpId,mon,yr))}</span></div>
+    <div class="sdiv" style="margin-top:14px">Pendapatan Lainnya</div>${pen}
+    <div class="sdiv" style="margin-top:14px">Potongan</div>${pot}
+    <div class="sal-row"><span style="color:var(--text-muted)">Izin/Sakit (hari × Tunj. Kinerja+Kehadiran+Transport)</span><span id="sc-izin" style="color:var(--danger)">-</span></div>
+    <div class="sal-block" style="margin-top:14px"><div class="sal-row total"><span>TOTAL TERIMA</span><span id="sc-final" style="font-size:18px">-</span></div></div>`;
+  el('mo-sal').classList.add('open'); calcSalStaff();
+}
+function readStaffForm(){
+  const emp=S.employees.st.find(e=>e.id===_salEmpId);
+  const sd={jumlahHadir:parseInt(gv('sd-hadir'))||0, izinHari:pf(gv('sd-izin')), gajiPokok:pn(gv('sd-gp')), tunjJabatan:pn(gv('sd-tj')),
+    pendapatanTambahan:Array.from({length:5},(_,i)=>({tanggal:'',rp:pn(gv('pr-'+i)),ket:gv('pk-'+i)})),
+    cashbon:Array.from({length:6},(_,i)=>({tanggal:'',rp:pn(gv('cr-'+i)),ket:gv('ck-'+i)}))};
+  return {emp,sd};
+}
+function calcSalStaff(){
+  const f=readStaffForm(), c=calcStaff(f.emp,f.sd,_salMon,_salYr);
+  setText('sc-izin','- '+rp(c.izin)); setText('sc-final',rp(c.total));
+}
+function saveSalStaff(){
+  const f=readStaffForm(), sd=getSalData('st',f.emp,_salMon,_salYr);
+  sd.jumlahHadir=f.sd.jumlahHadir; sd.izinHari=f.sd.izinHari; sd.gajiPokok=f.sd.gajiPokok; sd.tunjJabatan=f.sd.tunjJabatan;
+  sd.metodeBayar=gv('sd-metode')||'transfer';
+  f.sd.pendapatanTambahan.forEach((p,i)=>sd.pendapatanTambahan[i]=p);
+  f.sd.cashbon.forEach((p,i)=>sd.cashbon[i]=p);
+  saveState(); closeM('mo-sal'); renderGajiTable('st'); alert('✅ Data gaji berhasil disimpan!');
+}
+
+// ---------- STAFF: sambungkan ke fungsi lama ----------
+const _xOpenSlip=openSlip;
+openSlip=function(type,empId,mon,yr){
+  if(type!=='st') return _xOpenSlip(type,empId,mon,yr);
+  const emp=S.employees.st.find(e=>e.id===empId); if(!emp) return;
+  openSlipStaff(emp,getSalData('st',emp,mon,yr),mon,yr);
+};
+const _xUpdEP=updateEPSalary;
+updateEPSalary=function(){
+  if(!_portalEmp||_portalEmp.empType!=='st') return _xUpdEP();
+  const emp=S.employees.st.find(e=>e.id===_portalEmp.empId); if(!emp) return;
+  const mon=parseInt(gv('ep-mon')), yr=parseInt(gv('ep-yr'));
+  const sd=getSalData('st',emp,mon,yr), c=calcStaff(emp,sd,mon,yr);
+  el('ep-sal').innerHTML=`<div class="sv-card">
+    <div class="sv-head">Rincian Gaji – ${MONTHS[mon]} ${yr} <span style="float:right;font-size:11px;font-weight:600;color:var(--text-muted)">${sd.metodeBayar==='cash'?'💵 Cash':'💳 Transfer'}</span></div>
+    <div class="sv-body">${staffRowsHtml(c,'ep')}
+      <div class="sv-total"><span>💰 Total Terima</span><span>${rp(c.total)}</span></div>
+      <div style="font-size:12px;margin-top:20px"><b>Terbilang:</b> <i>${terbilangRp(c.total)}</i></div>
+    </div></div>`;
+};
+const _xOpenSal=openSalDetail;
+openSalDetail=function(type,empId,mon,yr){
+  if(type!=='st') return _xOpenSal(type,empId,mon,yr);
+  _salType=type; _salEmpId=empId; _salMon=mon; _salYr=yr;
+  openSalDetailStaff(mon,yr);
+};
+const _xCalcSal=calcSal;
+calcSal=function(){ return _salType==='st'?calcSalStaff():_xCalcSal(); };
+const _xSaveSal=saveSalDetail;
+saveSalDetail=function(){ return _salType==='st'?saveSalStaff():_xSaveSal(); };
+const _xGajiTbl=renderGajiTable;
+renderGajiTable=function(type){
+  if(type!=='st') return _xGajiTbl(type);
+  const mon=parseInt(gv('gm-st')), yr=parseInt(gv('gy-st'));
+  const q=(gv('gs-st')||'').trim().toLowerCase();
+  let emps=S.employees.st.filter(e=>e.aktif);
+  if(q) emps=emps.filter(e=>(e.nama||'').toLowerCase().includes(q)||(e.nik||'').toLowerCase().includes(q));
+  let tot=0;
+  el('gth-st').innerHTML='<th>Nama / Jabatan</th><th>Hari Hadir</th><th>Total Gaji/Bulan</th><th>Izin/Sakit</th><th>Pend. Lainnya + KPI</th><th>Potongan</th><th>Total Terima</th><th>Aksi</th>';
+  el('gtb-st').innerHTML=emps.length?emps.map(emp=>{
+    const sd=getSalData('st',emp,mon,yr), c=calcStaff(emp,sd,mon,yr); tot+=c.total;
+    return `<tr><td><b>${emp.nama}</b><br><small style="color:var(--text-muted)">${emp.jabatan}</small></td>
+      <td>${c.hadir}</td><td>${rp(c.totalGaji)}</td><td style="color:var(--danger)">${rp(c.izin)}</td>
+      <td>${rp(c.totPen+c.kpi)}</td><td style="color:var(--danger)">${rp(c.totPot)}</td>
+      <td style="font-weight:700;color:var(--primary)">${rp(c.total)}</td>
+      <td><button class="btn btn-sm btn-primary" onclick="openSalDetail('st','${emp.id}',${mon},${yr})">✏️ Isi Data</button></td></tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px">Belum ada karyawan aktif.</td></tr>';
+  el('gsb-st').innerHTML=`<div class="sum-bar"><div><div class="lbl">Total Gaji ${MONTHS[mon]} ${yr}</div><div class="val">${rp(tot)}</div></div><div style="text-align:right"><div class="lbl">Karyawan Ditampilkan</div><div class="val">${emps.length} orang</div></div></div>`;
+};
+
+// Dashboard, statistik, rekap, data karyawan
+_xPatch('renderDashboard',[["const g=base+tl+tp+tLain+tKpi-tpot; tot+=g; lem+=tl; denda+=ptl+ptm+ptp; hadir+=sd.jumlahHadir;","let g=base+tl+tp+tLain+tKpi-tpot, lm=tl, dn=ptl+ptm+ptp; if(type==='st'){ g=calcStaff(emp,sd,mon,yr).total; lm=0; dn=0; } tot+=g; lem+=lm; denda+=dn; hadir+=sd.jumlahHadir;"]]);
+_xPatch('getMonAgg',[["gaji+=base+tl+tp+tLain+tKpi-tpot; lem+=tl; denda+=ptl+ptm+ptp;","if(type==='st') gaji+=calcStaff(e,sd,mon,yr).total; else { gaji+=base+tl+tp+tLain+tKpi-tpot; lem+=tl; denda+=ptl+ptm+ptp; }"]]);
+const _xRekapFix=[["const totGajiEmp=base+tl+tp+tLainEmp+kpiEmp-totPotEmp;","const totGajiEmp=type==='st'?calcStaff(emp,sd,mon,yr).total:base+tl+tp+tLainEmp+kpiEmp-totPotEmp;"]];
+_xPatch('renderRekap',_xRekapFix);
+_xPatch('printRekap',_xRekapFix);
+_xPatch('renderEmpTable',[["<td>${ia?'-':rp(e.tunjMakan)}</td>","<td>${ia?'-':rp(type==='st'?e.tunjKinerja:e.tunjMakan)}</td>"]]);
+_xPatch('openEmpModal',[
+  ['<div class="fg"><label>Tunj. Makan/hari (Rp)</label><input type="number" id="f-tunjMakan" value="${vc(\'tunjMakan\')}" min="0"></div>',
+   '${type===\'st\'?`<div class="fg"><label>Tunj. Kinerja/bulan (Rp)</label><input type="number" id="f-tunjKinerja" value="${vc(\'tunjKinerja\')}" min="0"></div>`:`<div class="fg"><label>Tunj. Makan/hari (Rp)</label><input type="number" id="f-tunjMakan" value="${vc(\'tunjMakan\')}" min="0"></div>`}'],
+  ['<label>Tunj. Kehadiran/hari (Rp)</label>','<label>Tunj. Kehadiran/${type===\'st\'?\'bulan\':\'hari\'} (Rp)</label>'],
+  ['<label>Tunj. Transport/hari (Rp)</label>','<label>Tunj. Transport/${type===\'st\'?\'bulan\':\'hari\'} (Rp)</label>']
+]);
+_xPatch('saveEmp',[["Object.assign(emp,{gajiPokok:gn('f-gajiPokok'),","Object.assign(emp,{tunjKinerja:gn('f-tunjKinerja'),gajiPokok:gn('f-gajiPokok'),"]]);
+document.querySelectorAll('#page-emp-st th').forEach(th=>{ if(th.textContent.trim()==='T.Makan') th.textContent='T.Kinerja'; });
+
+// ---------- NOTIFIKASI LOGIN MENCURIGAKAN ----------
+document.body.insertAdjacentHTML('beforeend',`
+<div class="mo" id="mo-anomali" style="z-index:3500;align-items:center"><div class="rahasia-box" style="width:480px">
+  <div class="rahasia-hd">🚨 Peringatan Keamanan Akun</div>
+  <div class="rahasia-bd" id="anomali-body" style="white-space:normal;max-height:60vh;overflow-y:auto"></div>
+  <div class="mft"><button class="btn" onclick="closeM('mo-anomali')">Tutup</button><button class="btn btn-primary" onclick="openLoginLogsFromAlert()">🛡️ Lihat Aktivitas Login</button></div>
+</div></div>
+<div class="mo" id="mo-owner-alert" style="z-index:3500;align-items:center"><div class="rahasia-box">
+  <div class="rahasia-hd">⚠️ Akun Anda Dipakai di Perangkat Lain</div>
+  <div class="rahasia-bd" id="owner-alert-body" style="white-space:normal;max-height:60vh;overflow-y:auto"></div>
+  <div class="mft"><button class="btn btn-danger" onclick="ownerAlertAnswer(false)">❌ Bukan Saya</button><button class="btn btn-success" onclick="ownerAlertAnswer(true)">✅ Itu Saya</button></div>
+</div></div>`);
+
+let _xKnown=null, _ownerAlertLogs=[];
+function logKey(r){ return r.id+':'+(r.reportedNotMine?1:0)+':'+(r.acked?1:0); }
+function isAdminSession(){ return sessionStorage.getItem('mmt_auth')==='admin'; }
+function beep(){
+  try{ const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
+    o.connect(g); g.connect(c.destination); o.frequency.value=880; g.gain.value=.15; o.start();
+    setTimeout(()=>{o.stop();c.close();},450); }catch(e){}
+}
+function showAnomalyAlert(list){
+  if(!list.length||!isAdminSession()) return;
+  list=list.slice().sort((a,b)=>(b.ts||0)-(a.ts||0)); beep();
+  const items=list.slice(0,5).map(r=>{
+    const ua=parseUA(r.ua), hp=HR.profil[empKey(r.empType,r.empId)]?.noHp;
+    const wa=hp?`https://wa.me/${normalizeWaNumber(hp)}?text=${encodeURIComponent('Halo '+(r.nama||'')+', sistem mendeteksi login ke akun Anda dari perangkat baru pada '+fmtLoginTs(r.ts)+' ('+ua.browser+' / '+ua.os+'). Apakah itu benar Anda? Jika bukan, segera hubungi HRD.')}`:'';
+    return `<div style="border:1px solid var(--border);border-left:4px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;line-height:1.6">
+      <b>${escapeHtml(r.nama||'-')}</b> ${r.reportedNotMine?'<span class="badge badge-d">🚨 Pemilik: BUKAN SAYA</span>':''}<br>
+      🕒 ${fmtLoginTs(r.ts)}<br>🖥️ ${ua.browser} &bull; ${ua.os}<br>🌐 IP: ${escapeHtml(r.ip||'Tidak diketahui')}
+      ${wa?`<br><a class="btn btn-sm" style="background:#25D366;color:#fff;border-color:#25D366;margin-top:6px" href="${wa}" target="_blank" rel="noopener">💬 Kirim WA ke Karyawan</a>`:''}</div>`;
+  }).join('');
+  el('anomali-body').innerHTML=`<div style="margin-bottom:10px">Terdeteksi <b>${list.length}</b> login dari perangkat yang tidak biasa:</div>${items}${list.length>5?`<div style="font-size:12px;color:var(--text-muted)">…dan ${list.length-5} lainnya.</div>`:''}`;
+  el('mo-anomali').classList.add('open');
+}
+function openLoginLogsFromAlert(){
+  closeM('mo-anomali');
+  showPage('login-logs',document.querySelector('.sb-btn[onclick*="login-logs"]'));
+}
+const _xUld=updateLoginAnomalyDot;
+updateLoginAnomalyDot=function(){
+  _xUld();
+  if(!isAdminSession()) return;
+  const keys=new Set(S.loginLogs.map(logKey));
+  const pending=l=>l.filter(r=>(r.isNewDevice||r.reportedNotMine)&&!r.acked);
+  if(_xKnown===null){ _xKnown=keys; showAnomalyAlert(pending(S.loginLogs)); return; }
+  const fresh=pending(S.loginLogs.filter(r=>!_xKnown.has(logKey(r))));
+  _xKnown=keys;
+  if(fresh.length) showAnomalyAlert(fresh);
+};
+const _xRahasia=showRahasiaNotice;
+showRahasiaNotice=async function(){
+  _xRahasia();
+  try{
+    const auth=sessionStorage.getItem('mmt_auth')||''; if(!auth.startsWith('emp:')) return;
+    const accId=auth.split(':')[1], fp=await getDeviceFingerprint();
+    _ownerAlertLogs=S.loginLogs.filter(r=>r.accId===accId&&r.isNewDevice&&!r.ownerSeen&&r.fp!==fp);
+    if(!_ownerAlertLogs.length) return;
+    el('owner-alert-body').innerHTML='<div style="margin-bottom:10px">Sejak login terakhir Anda, akun ini dipakai dari <b>perangkat lain</b>:</div>'+
+      _ownerAlertLogs.slice(0,5).map(r=>{ const u=parseUA(r.ua);
+        return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;line-height:1.6">🕒 ${fmtLoginTs(r.ts)}<br>🖥️ ${u.browser} &bull; ${u.os}<br>🌐 IP: ${escapeHtml(r.ip||'Tidak diketahui')}</div>`; }).join('')+
+      '<div style="font-size:12.5px;margin-top:8px">Apakah itu Anda? Jika <b>bukan</b>, pilih "Bukan Saya" lalu segera hubungi HRD untuk mengganti kata sandi.</div>';
+    el('mo-owner-alert').classList.add('open');
+  }catch(e){ console.warn(e); }
+};
+function ownerAlertAnswer(mine){
+  _ownerAlertLogs.forEach(r=>{ const x=S.loginLogs.find(l=>l.id===r.id); if(x){ x.ownerSeen=true; if(!mine) x.reportedNotMine=true; } });
+  _ownerAlertLogs=[]; saveLoginLogs(); closeM('mo-owner-alert');
+  if(!mine) alert('Laporan sudah dikirim ke HRD. Segera hubungi HRD untuk mengganti kata sandi Anda.');
+}
+_xPatch('renderLoginLogs',[['<div class="izin-card-meta">${fmtLoginTs(r.ts)}</div>',
+  '<div class="izin-card-meta">${r.reportedNotMine?\'<span class="badge badge-d" style="margin-right:6px">🚨 Dilaporkan pemilik: BUKAN SAYA</span>\':\'\'}${fmtLoginTs(r.ts)}</div>']]);
+</script>
 </html>
